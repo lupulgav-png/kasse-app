@@ -269,6 +269,29 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
 }
 .kasse-table tfoot tr td:first-child { color: var(--ink-3); font-weight: 400; }
 
+/* ─── Kasse cards (on-screen layout; table is print-only) ─ */
+.print-only { display: none; }
+.kasse-card { padding: 12px 14px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background 0.12s; }
+.kasse-card:active { background: var(--line); }
+.kc-carry { cursor: default; }
+.kc-top { display: flex; gap: 10px; align-items: baseline; }
+.kc-date { font-size: 11px; color: var(--ink-4); white-space: nowrap; flex-shrink: 0; }
+.kc-desc {
+  flex: 1; min-width: 0; font-size: 14px; color: var(--ink); line-height: 1.3;
+  overflow-wrap: break-word; word-break: normal; hyphens: auto;
+}
+.kc-bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-top: 7px; padding-left: 27px; }
+.kc-amount { font-size: 14px; font-weight: 500; white-space: nowrap; }
+.kc-saldo { text-align: right; white-space: nowrap; }
+.kc-saldo-label { display: block; font-size: 9px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-4); }
+.kc-saldo-val { font-size: 15px; font-weight: 600; }
+.kasse-total { padding: 12px 14px 14px; border-top: 1.5px solid var(--line-2); }
+.kt-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 3px 0; font-size: 13px; color: var(--ink-3); }
+.kt-row .tnum { font-weight: 600; white-space: nowrap; }
+.kt-saldo { margin-top: 5px; padding-top: 9px; border-top: 1px solid var(--line); }
+.kt-saldo > span:first-child { color: var(--ink-2); font-weight: 500; }
+.kt-saldo .tnum { font-size: 16px; color: var(--ink); }
+
 /* ─── Chip / Category pill ───────────────────────────── */
 .chip {
   display: inline-flex; align-items: center;
@@ -346,15 +369,12 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
   .sheet-backdrop, .sheet { display: none !important; }
   .topbar { display: none !important; }
   .print-header { display: block !important; }
+  .print-only { display: block !important; }
   .card { border: none !important; box-shadow: none !important; background: #fff !important; }
   .kasse-table { font-size: 12px; }
   .kasse-table th, .kasse-table td { padding: 7px 6px; }
-  /* A4 has room — wide numeric columns so even millions print in full */
-  .kasse-table th:nth-child(1), .kasse-table td:nth-child(1) { width: 70px; }
-  .kasse-table th:nth-child(3), .kasse-table td:nth-child(3) { width: 90px; }
-  .kasse-table th:nth-child(4), .kasse-table td:nth-child(4) { width: 90px; }
-  .kasse-table th:nth-child(5), .kasse-table td:nth-child(5) { width: 95px; }
-  /* Reset adaptive on-screen shrinking — uniform readable size on paper */
+  /* Column widths come from the inline th widths (72/auto/92/90/100) — A4 has
+     room, so even 7-figure amounts print in full. */
   .kasse-table td.tnum { font-size: 12px !important; }
   /* Show full descriptions on paper */
   .kasse-table td:nth-child(2), .kasse-table th:nth-child(2) {
@@ -1227,15 +1247,62 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
               <div style={{ fontSize:13, marginTop:4 }}>{t.tapToAdd}</div>
             </div>
           ) : (
-            <div className="card" style={{ marginTop:6 }}>
+            <>
+            {/* On-screen: card list — handles any text length and any amount size */}
+            <div className="card no-print" style={{ marginTop:6 }}>
+              {showCarry && (
+                <div className="kasse-card kc-carry">
+                  <div className="kc-top">
+                    <span className="kc-date">{fmtDayWd(periodStart, lang)}</span>
+                    <span className="kc-desc" style={{ fontStyle:'italic', color:'var(--ink-2)' }}>{t.carryForward}</span>
+                  </div>
+                  <div className="kc-bottom">
+                    <span/>
+                    <span className="kc-saldo">
+                      <span className="kc-saldo-label">{t.colBalance}</span>
+                      <span className="kc-saldo-val tnum" style={{ color: carryIn < 0 ? 'var(--negative)' : 'var(--ink-2)' }}>{fmtSaldo(carryIn)}</span>
+                    </span>
+                  </div>
+                </div>
+              )}
+              {running.map(e => {
+                const dt = parseKey(e.date);
+                const isEin = e.type === 'einnahme';
+                return (
+                  <div key={e.id} className="kasse-card" onClick={() => onOpenEntry(e)}>
+                    <div className="kc-top">
+                      <span className="kc-date">{fmtDayWd(dt, lang)}</span>
+                      <span className="kc-desc">{e.desc}</span>
+                    </div>
+                    <div className="kc-bottom">
+                      <span className="kc-amount tnum" style={{ color: isEin ? 'var(--positive)' : 'var(--negative)' }}>
+                        {isEin ? '+' : '−'} {fmtAmount(e.amount)}
+                      </span>
+                      <span className="kc-saldo">
+                        <span className="kc-saldo-label">{t.colBalance}</span>
+                        <span className="kc-saldo-val tnum" style={{ color: e.saldo < 0 ? 'var(--negative)' : 'var(--ink)' }}>{fmtSaldo(e.saldo)}</span>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="kasse-total">
+                <div className="kt-row"><span>{t.colIncome}</span><span className="tnum" style={{ color:'var(--positive)' }}>{fmtAmount(totalEin)}</span></div>
+                <div className="kt-row"><span>{t.colExpense}</span><span className="tnum" style={{ color:'var(--negative)' }}>{fmtAmount(totalAus)}</span></div>
+                <div className="kt-row kt-saldo"><span>{t.colBalance}</span><span className="tnum" style={{ color: endSaldo < 0 ? 'var(--negative)' : 'var(--ink)' }}>{fmtSaldo(endSaldo)}</span></div>
+              </div>
+            </div>
+
+            {/* Print / PDF: classic table (A4 has room — wide numeric columns) */}
+            <div className="card print-only" style={{ marginTop:6 }}>
               <table className="kasse-table">
                 <thead>
                   <tr>
-                    <th style={{ width:54 }}>{t.colDate}</th>
+                    <th style={{ width:72 }}>{t.colDate}</th>
                     <th style={{ width:'auto' }}>{t.colText}</th>
-                    <th style={{ width:62 }}>{t.colIncome}</th>
-                    <th style={{ width:60 }}>{t.colExpense}</th>
-                    <th style={{ width:74 }}>{t.colBalance}</th>
+                    <th style={{ width:92 }}>{t.colIncome}</th>
+                    <th style={{ width:90 }}>{t.colExpense}</th>
+                    <th style={{ width:100 }}>{t.colBalance}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1283,6 +1350,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
                 </tfoot>
               </table>
             </div>
+            </>
           )}
         </div>
 
