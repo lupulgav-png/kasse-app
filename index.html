@@ -373,6 +373,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
   .print-only { display: block !important; }
   .card { border: none !important; box-shadow: none !important; background: #fff !important; }
   .kasse-table { font-size: 12px; }
+  .kasse-table th { font-size: 12px !important; font-weight: 700 !important; color: #000 !important; }
   .kasse-table th, .kasse-table td { padding: 7px 6px; }
   /* Column widths come from the inline th widths (72/auto/92/90/100) — A4 has
      room, so even 7-figure amounts print in full. */
@@ -418,6 +419,8 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
     showKW:         true,    // Kalenderwoche anzeigen
     headerType:     'firma', // 'firma' | 'privat' — Kopfzeilen-Typ für PDF
     lang:           'de',    // 'de' | 'en' | 'it' | 'fr'
+    showCategory:   false,   // Kategorie-Auswahlfeld bei neuen Einträgen zeigen
+    customCategories: [],    // benutzerdefinierte Kategorien (zusätzlich zu den Vorgaben)
   };
 
   /* runtime week-start day — updated from settings (0=So … 6=Sa) */
@@ -457,7 +460,14 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
     it: ['Riparazione','Servizio','Ricambi','Materiale','Vendita','Stipendio','Affitto','Assicurazione','Carburante','Ufficio','Altro'],
     fr: ['Réparation','Service','Pièces','Matériel','Vente','Salaire','Loyer','Assurance','Carburant','Bureau','Autre'],
   };
-  const catsFor = lang => CATEGORIES[lang] || CATEGORIES.de;
+  // Preset categories for a language, plus any user-defined custom categories.
+  // Custom ones are deduped (case-insensitive) against the presets.
+  const catsFor = (lang, custom = []) => {
+    const base = CATEGORIES[lang] || CATEGORIES.de;
+    const lower = new Set(base.map(c => c.toLowerCase()));
+    const extra = (custom || []).filter(c => c && !lower.has(c.toLowerCase()));
+    return [...base, ...extra];
+  };
 
   /* ── UI strings ──────────────────────────────────────── */
   const STRINGS = {
@@ -467,6 +477,8 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       calWeek:'Kalenderwoche', week:'Woche', month:'Monat',
       colDate:'Datum', colText:'Text', colIncome:'Einnahmen', colExpense:'Ausgaben', colBalance:'Saldo',
       carryForward:'Saldoübertrag', total:'Total', category:'Kategorie', categoryNone:'– keine –',
+      grpCategories:'Kategorien', showCategory:'Kategorie anzeigen', showCategorySub:'Auswahlfeld bei neuen Einträgen',
+      customCategoriesLabel:'Eigene Kategorien', presetLabel:'Vorgaben', addCategoryPlaceholder:'Neue Kategorie …',
       noEntriesWeek:'Keine Einträge diese Woche', noEntriesMonth:'Keine Einträge diesen Monat',
       tapToAdd:'Tippe + um einen Eintrag hinzuzufügen',
       print:'Drucken / PDF', addEntry:'Eintrag hinzufügen', pickDate:'Datum wählen',
@@ -474,7 +486,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       date:'Datum', description:'Beschreibung', amount:'Betrag', tapToConfirm:'Antippen zum Bestätigen',
       income:'Einnahme', expense:'Ausgabe', descPlaceholder:'z.B. Rg.nr. 26.24, Landi …', deleteEntry:'Eintrag löschen',
       archive:'Archiv', history:'Verlauf', noEntriesYet:'Noch keine Einträge', current:'Aktuell',
-      entryOne:'Eintrag', entryMany:'Einträge', backToHistory:'Zurück zum Verlauf', openWeek:'Woche öffnen',
+      entryOne:'Eintrag', entryMany:'Einträge', backToHistory:'Zurück zum Verlauf', openWeek:'Woche öffnen', openMonth:'Monat öffnen',
       setup:'Setup', settings:'Einstellungen',
       grpBalance:'Saldo', openingBalance:'Anfangssaldo', openingBalanceSub:'Startbetrag vor dem ersten Eintrag',
       grpDisplay:'Darstellung', currencyLabel:'Währung', weekStart:'Wochenbeginn', weekStartSub:'Erster Tag der Woche',
@@ -497,6 +509,8 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       calWeek:'Calendar week', week:'Week', month:'Month',
       colDate:'Date', colText:'Text', colIncome:'Income', colExpense:'Expenses', colBalance:'Balance',
       carryForward:'Carryover', total:'Total', category:'Category', categoryNone:'– none –',
+      grpCategories:'Categories', showCategory:'Show category', showCategorySub:'Selection field for new entries',
+      customCategoriesLabel:'Custom categories', presetLabel:'Presets', addCategoryPlaceholder:'New category …',
       noEntriesWeek:'No entries this week', noEntriesMonth:'No entries this month',
       tapToAdd:'Tap + to add an entry',
       print:'Print / PDF', addEntry:'Add entry', pickDate:'Choose date',
@@ -504,7 +518,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       date:'Date', description:'Description', amount:'Amount', tapToConfirm:'Tap to confirm',
       income:'Income', expense:'Expense', descPlaceholder:'e.g. Inv. 26.24, Landi …', deleteEntry:'Delete entry',
       archive:'Archive', history:'History', noEntriesYet:'No entries yet', current:'Current',
-      entryOne:'entry', entryMany:'entries', backToHistory:'Back to history', openWeek:'Open week',
+      entryOne:'entry', entryMany:'entries', backToHistory:'Back to history', openWeek:'Open week', openMonth:'Open month',
       setup:'Setup', settings:'Settings',
       grpBalance:'Balance', openingBalance:'Opening balance', openingBalanceSub:'Starting amount before the first entry',
       grpDisplay:'Display', currencyLabel:'Currency', weekStart:'Week start', weekStartSub:'First day of the week',
@@ -527,6 +541,8 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       calWeek:'Settimana', week:'Settimana', month:'Mese',
       colDate:'Data', colText:'Testo', colIncome:'Entrate', colExpense:'Uscite', colBalance:'Saldo',
       carryForward:'Riporto', total:'Totale', category:'Categoria', categoryNone:'– nessuna –',
+      grpCategories:'Categorie', showCategory:'Mostra categoria', showCategorySub:'Campo di selezione per nuove voci',
+      customCategoriesLabel:'Categorie personali', presetLabel:'Predefinite', addCategoryPlaceholder:'Nuova categoria …',
       noEntriesWeek:'Nessun movimento questa settimana', noEntriesMonth:'Nessun movimento questo mese',
       tapToAdd:'Tocca + per aggiungere una voce',
       print:'Stampa / PDF', addEntry:'Aggiungi voce', pickDate:'Scegli data',
@@ -534,7 +550,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       date:'Data', description:'Descrizione', amount:'Importo', tapToConfirm:'Tocca per confermare',
       income:'Entrata', expense:'Uscita', descPlaceholder:'es. Fatt. 26.24, Landi …', deleteEntry:'Elimina voce',
       archive:'Archivio', history:'Storico', noEntriesYet:'Ancora nessun movimento', current:'Attuale',
-      entryOne:'voce', entryMany:'voci', backToHistory:'Torna allo storico', openWeek:'Apri settimana',
+      entryOne:'voce', entryMany:'voci', backToHistory:'Torna allo storico', openWeek:'Apri settimana', openMonth:'Apri mese',
       setup:'Setup', settings:'Impostazioni',
       grpBalance:'Saldo', openingBalance:'Saldo iniziale', openingBalanceSub:'Importo iniziale prima della prima voce',
       grpDisplay:'Visualizzazione', currencyLabel:'Valuta', weekStart:'Inizio settimana', weekStartSub:'Primo giorno della settimana',
@@ -557,6 +573,8 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       calWeek:'Semaine', week:'Semaine', month:'Mois',
       colDate:'Date', colText:'Texte', colIncome:'Recettes', colExpense:'Dépenses', colBalance:'Solde',
       carryForward:'Report', total:'Total', category:'Catégorie', categoryNone:'– aucune –',
+      grpCategories:'Catégories', showCategory:'Afficher la catégorie', showCategorySub:'Champ de sélection pour les nouvelles entrées',
+      customCategoriesLabel:'Catégories personnalisées', presetLabel:'Prédéfinies', addCategoryPlaceholder:'Nouvelle catégorie …',
       noEntriesWeek:'Aucune entrée cette semaine', noEntriesMonth:'Aucune entrée ce mois',
       tapToAdd:'Touchez + pour ajouter une entrée',
       print:'Imprimer / PDF', addEntry:'Ajouter une entrée', pickDate:'Choisir la date',
@@ -564,7 +582,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       date:'Date', description:'Description', amount:'Montant', tapToConfirm:'Touchez pour confirmer',
       income:'Recette', expense:'Dépense', descPlaceholder:'p.ex. Fact. 26.24, Landi …', deleteEntry:'Supprimer l’entrée',
       archive:'Archive', history:'Historique', noEntriesYet:'Aucune entrée', current:'Actuel',
-      entryOne:'entrée', entryMany:'entrées', backToHistory:'Retour à l’historique', openWeek:'Ouvrir la semaine',
+      entryOne:'entrée', entryMany:'entrées', backToHistory:'Retour à l’historique', openWeek:'Ouvrir la semaine', openMonth:'Ouvrir le mois',
       setup:'Configuration', settings:'Réglages',
       grpBalance:'Solde', openingBalance:'Solde initial', openingBalanceSub:'Montant de départ avant la première entrée',
       grpDisplay:'Affichage', currencyLabel:'Devise', weekStart:'Début de semaine', weekStartSub:'Premier jour de la semaine',
@@ -751,6 +769,20 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       seen.add(dateKey(ws.getFullYear(), ws.getMonth(), ws.getDate()));
     }
     return [...seen].sort((a, b) => b.localeCompare(a)).map(parseKey);
+  }
+
+  // Get all month-start dates that have entries, sorted newest first
+  function allMonthStarts(entries) {
+    const seen = new Set();
+    for (const k of Object.keys(entries)) {
+      if ((entries[k] || []).length === 0) continue;
+      const [y, m] = k.split('-').map(Number);
+      seen.add(`${y}-${pad(m)}`);
+    }
+    return [...seen].sort((a, b) => b.localeCompare(a)).map(s => {
+      const [y, m] = s.split('-').map(Number);
+      return new Date(y, m - 1, 1);
+    });
   }
 
   function loadData() {
@@ -975,7 +1007,9 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
     const [amount, setAmount] = useState(editEntry ? String(editEntry.amount) : '');
     const [type, setType]     = useState(editEntry?.type   || null);
     const [cat, setCat]       = useState(editEntry?.cat && editEntry.cat !== 'custom' ? editEntry.cat : '');
-    const categoryList = catsFor(state.settings.lang);
+    const [dateFocused, setDateFocused] = useState(false);
+    const showCategory = state.settings.showCategory === true;
+    const categoryList = catsFor(state.settings.lang, state.settings.customCategories);
 
     // Picking a category quick-fills an empty description
     function pickCat(c) {
@@ -1008,7 +1042,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
 
     return (
       <>
-        <div className="sheet-backdrop" onClick={onClose}/>
+        <div className="sheet-backdrop" onClick={!dateFocused ? onClose : undefined} style={{ pointerEvents: dateFocused ? 'none' : undefined }}/>
         <div className="sheet">
           <div className="sheet-handle"/>
           <div style={{ padding:'12px 20px 12px', display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'1px solid var(--line)', flexShrink:0 }}>
@@ -1029,6 +1063,8 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
               <input
                 type="date" value={date}
                 onChange={e => setDate(e.target.value)}
+                onFocus={() => setDateFocused(true)}
+                onBlur={() => setDateFocused(false)}
                 style={{
                   display:'block', width:'100%', boxSizing:'border-box',
                   WebkitAppearance:'none', appearance:'none',
@@ -1057,26 +1093,28 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
               />
             </div>
 
-            {/* Category — quick-fill preset */}
-            <div style={{ marginBottom:18 }}>
-              <div className="kicker" style={{ marginBottom:8 }}>{t.category}</div>
-              <select
-                value={cat} onChange={e => pickCat(e.target.value)}
-                style={{
-                  width:'100%', background:'var(--surface)',
-                  border:'1px solid var(--line-2)',
-                  borderRadius:8, padding:'10px 12px',
-                  fontSize:15, fontFamily:'inherit',
-                  color: cat ? 'var(--ink)' : 'var(--ink-3)',
-                  outline:'none', appearance:'none',
-                  backgroundImage:'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\' viewBox=\'0 0 12 8\'%3E%3Cpath fill=\'%238C8A82\' d=\'M6 8 0 0h12z\'/%3E%3C/svg%3E")',
-                  backgroundRepeat:'no-repeat', backgroundPosition:'right 12px center',
-                }}
-              >
-                <option value="">{t.categoryNone}</option>
-                {categoryList.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
+            {/* Category — optional, quick-fill preset (toggle in Settings) */}
+            {showCategory && (
+              <div style={{ marginBottom:18 }}>
+                <div className="kicker" style={{ marginBottom:8 }}>{t.category}</div>
+                <select
+                  value={cat} onChange={e => pickCat(e.target.value)}
+                  style={{
+                    width:'100%', background:'var(--surface)',
+                    border:'1px solid var(--line-2)',
+                    borderRadius:8, padding:'10px 12px',
+                    fontSize:15, fontFamily:'inherit',
+                    color: cat ? 'var(--ink)' : 'var(--ink-3)',
+                    outline:'none', appearance:'none',
+                    backgroundImage:'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\' viewBox=\'0 0 12 8\'%3E%3Cpath fill=\'%238C8A82\' d=\'M6 8 0 0h12z\'/%3E%3C/svg%3E")',
+                    backgroundRepeat:'no-repeat', backgroundPosition:'right 12px center',
+                  }}
+                >
+                  <option value="">{t.categoryNone}</option>
+                  {categoryList.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            )}
 
             {/* Amount */}
             <div style={{ marginBottom:18 }}>
@@ -1217,6 +1255,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
             </div>
             <div style={{ textAlign:'right', flexShrink:0 }}>
               <div style={{ fontSize:15, fontWeight:600 }}>{t.docName} {periodStart.getFullYear()}</div>
+              <div style={{ fontSize:12, color:'#555', marginTop:2 }}>{t.currencyLabel}: {settings.currency || 'SFr.'}</div>
             </div>
           </div>
           <div style={{ borderTop:'1.5px solid #000', paddingTop:8, fontSize:12, fontWeight:600 }}>
@@ -1354,7 +1393,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
                 <tbody>
                   {showCarry && (
                     <tr>
-                      <td className="tnum" style={{ color:'var(--ink-4)', fontSize:11 }}>{fmtDayWd(periodStart, lang)}</td>
+                      <td className="tnum" style={{ color:'var(--ink-3)', fontSize:11 }}>{fmtDayWd(periodStart, lang)}</td>
                       <td style={{ color:'var(--ink-2)', fontStyle:'italic', fontWeight:700 }}>
                         {t.carryForward}
                       </td>
@@ -1391,10 +1430,10 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan={2} style={{ color:'var(--ink-3)', fontSize:12, fontWeight:400 }}>{t.total}</td>
-                    <td className="tnum" style={{ color:'var(--positive)', fontWeight:600, fontSize:numFontSize(fmtAmount(totalEin)) }}>{fmtAmount(totalEin)}</td>
-                    <td className="tnum" style={{ color:'var(--negative)', fontWeight:600, fontSize:numFontSize(fmtAmount(totalAus)) }}>{fmtAmount(totalAus)}</td>
-                    <td className="tnum" style={{ fontSize:numFontSize(fmtSaldo(endSaldo)), color: endSaldo < 0 ? 'var(--negative)' : 'var(--ink)', fontWeight:600 }}>{fmtSaldo(endSaldo)}</td>
+                    <td colSpan={2} style={{ color:'var(--ink)', fontSize:12, fontWeight:700 }}>{t.total}</td>
+                    <td className="tnum" style={{ color:'var(--positive)', fontWeight:700, fontSize:numFontSize(fmtAmount(totalEin)) }}>{fmtAmount(totalEin)}</td>
+                    <td className="tnum" style={{ color:'var(--negative)', fontWeight:700, fontSize:numFontSize(fmtAmount(totalAus)) }}>{fmtAmount(totalAus)}</td>
+                    <td className="tnum" style={{ fontSize:numFontSize(fmtSaldo(endSaldo)), color: endSaldo < 0 ? 'var(--negative)' : 'var(--ink)', fontWeight:700 }}>{fmtSaldo(endSaldo)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -1410,18 +1449,29 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
   /* ═══════════════════════════════════════════
      VERLAUF SCREEN
   ═══════════════════════════════════════════ */
-  function VerlaufScreen({ state, onPickWeek, onDeleteEntry }) {
-    const weeks = allWeekStarts(state.entries);
+  function VerlaufScreen({ state, onPickWeek, onPickMonth, onDeleteEntry }) {
     const showKW = state.settings.showKW !== false;
-    const lang = state.settings.lang || 'de';
-    const t = tr(lang);
-    const [openKey, setOpenKey] = useState(null);
+    const lang   = state.settings.lang || 'de';
+    const t      = tr(lang);
+    const MN     = mons(lang);
+    const [openKey, setOpenKey]   = useState(null);
+    const [viewMode, setViewMode] = useState('woche'); // 'woche' | 'monat'
 
-    // Also include current week even if empty
+    // Week mode data
+    const weeks = allWeekStarts(state.entries);
     const todayWS = getWeekStart(state.today);
     const todayWSKey = dateKey(todayWS.getFullYear(), todayWS.getMonth(), todayWS.getDate());
-    const allKeys = new Set(weeks.map(d => dateKey(d.getFullYear(), d.getMonth(), d.getDate())));
-    const displayWeeks = allKeys.has(todayWSKey) ? weeks : [todayWS, ...weeks];
+    const weekKeys = new Set(weeks.map(d => dateKey(d.getFullYear(), d.getMonth(), d.getDate())));
+    const displayWeeks = weekKeys.has(todayWSKey) ? weeks : [todayWS, ...weeks];
+
+    // Month mode data
+    const months = allMonthStarts(state.entries);
+    const todayMonth = new Date(state.today.getFullYear(), state.today.getMonth(), 1);
+    const todayMKey  = dateKey(todayMonth.getFullYear(), todayMonth.getMonth(), 1);
+    const monthKeys  = new Set(months.map(d => dateKey(d.getFullYear(), d.getMonth(), 1)));
+    const displayMonths = monthKeys.has(todayMKey) ? months : [todayMonth, ...months];
+
+    const isWeek = viewMode === 'woche';
 
     return (
       <div className="screen screen-enter">
@@ -1431,36 +1481,45 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
             <div className="label-lg fade-up" style={{ animationDelay:'0.04s' }}>{t.history}</div>
           </div>
         </div>
+
+        {/* View toggle */}
+        <div style={{ padding:'0 16px 10px', display:'flex' }}>
+          <div style={{ display:'inline-flex', background:'var(--line)', borderRadius:9, padding:2 }}>
+            {[['woche',t.week],['monat',t.month]].map(([v,l]) => (
+              <button key={v} onClick={() => { setViewMode(v); setOpenKey(null); }} style={{
+                appearance:'none', border:'none', cursor:'pointer',
+                padding:'6px 16px', borderRadius:7,
+                background: viewMode===v ? 'var(--surface)' : 'transparent',
+                color: viewMode===v ? 'var(--ink)' : 'var(--ink-3)',
+                fontFamily:'inherit', fontSize:13, fontWeight:500, letterSpacing:'-0.01em',
+                boxShadow: viewMode===v ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                transition:'all 0.2s var(--tap)',
+              }}>{l}</button>
+            ))}
+          </div>
+        </div>
+
         <div className="scroll" style={{ padding:'0 16px 24px' }}>
-          {displayWeeks.length === 0 ? (
+          {(isWeek ? displayWeeks : displayMonths).length === 0 ? (
             <div style={{ textAlign:'center', padding:'60px 20px', color:'var(--ink-3)', fontSize:14 }}>
               {t.noEntriesYet}
             </div>
           ) : (
             <div className="card fade-up" style={{ animationDelay:'0.08s' }}>
-              {displayWeeks.map((ws, i) => {
+              {isWeek ? displayWeeks.map((ws, i) => {
                 const wEntries = getEntriesInRange(state.entries, ws, weekEndDate(ws));
                 const carryIn  = carryInBeforeDate(state.entries, ws, state.settings.anfangssaldo);
                 const running  = computeRunning(wEntries, carryIn);
-                const totalEin = wEntries.reduce((s,e) => e.type==='einnahme' ? s+e.amount : s, 0);
-                const totalAus = wEntries.reduce((s,e) => e.type==='ausgabe'  ? s+e.amount : s, 0);
                 const endSaldo = running.length > 0 ? running[running.length-1].saldo : carryIn;
                 const friday   = weekEndDate(ws);
                 const kw       = weekKW(ws);
                 const wsKey    = dateKey(ws.getFullYear(), ws.getMonth(), ws.getDate());
-                const todayKey2 = dateKey(todayWS.getFullYear(), todayWS.getMonth(), todayWS.getDate());
-                const isCurrent = wsKey === todayKey2;
+                const isCurrent = wsKey === todayWSKey;
                 const isOpen = openKey === wsKey;
                 return (
                   <div key={wsKey} style={{ borderBottom: i < displayWeeks.length-1 ? '1px solid var(--line)' : 'none' }}>
-                    {/* Header — tap to expand/collapse */}
                     <div onClick={() => setOpenKey(isOpen ? null : wsKey)}
-                      style={{
-                        display:'flex', alignItems:'center', gap:12,
-                        padding:'14px 16px', cursor:'pointer', transition:'background 0.12s',
-                        background: isOpen ? 'var(--line)' : '',
-                      }}
-                    >
+                      style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 16px', cursor:'pointer', transition:'background 0.12s', background: isOpen ? 'var(--line)' : '' }}>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontSize:13.5, fontWeight:500, letterSpacing:'-0.01em', color:'var(--ink)', display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
                           <span style={{ whiteSpace:'nowrap' }}>{fmtDateFull(ws)} – {fmtDateFull(friday)}</span>
@@ -1470,15 +1529,9 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
                           {showKW ? `${t.calWeek} ${kw} · ` : ''}{wEntries.length} {wEntries.length === 1 ? t.entryOne : t.entryMany}
                         </div>
                       </div>
-                      <div className="tnum" style={{ fontSize:14, fontWeight:600, color: endSaldo < 0 ? 'var(--negative)' : 'var(--ink)', flexShrink:0 }}>
-                        {fmtSaldo(endSaldo)}
-                      </div>
-                      <span style={{ display:'inline-flex', transition:'transform 0.2s var(--tap)', transform: isOpen ? 'rotate(90deg)' : 'none', flexShrink:0 }}>
-                        <Chevron color="var(--ink-3)"/>
-                      </span>
+                      <div className="tnum" style={{ fontSize:14, fontWeight:600, color: endSaldo < 0 ? 'var(--negative)' : 'var(--ink)', flexShrink:0 }}>{fmtSaldo(endSaldo)}</div>
+                      <span style={{ display:'inline-flex', transition:'transform 0.2s var(--tap)', transform: isOpen ? 'rotate(90deg)' : 'none', flexShrink:0 }}><Chevron color="var(--ink-3)"/></span>
                     </div>
-
-                    {/* Expanded — entries with delete (X), plus open-week */}
                     {isOpen && (
                       <div style={{ padding:'2px 16px 12px' }}>
                         {running.length === 0 ? (
@@ -1494,20 +1547,61 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
                                 {isEin ? '+' : '−'} {fmtAmount(e.amount)}
                               </span>
                               <button onClick={() => onDeleteEntry(e.id, e.date)} title={t.deleteEntry}
-                                style={{
-                                  appearance:'none', border:'none', cursor:'pointer', flexShrink:0,
-                                  width:28, height:28, borderRadius:99, display:'inline-flex',
-                                  alignItems:'center', justifyContent:'center',
-                                  background:'var(--accent-soft)', color:'var(--negative)',
-                                  fontSize:18, lineHeight:1, fontWeight:600, padding:0,
-                                }}>×</button>
+                                style={{ appearance:'none', border:'none', cursor:'pointer', flexShrink:0, width:28, height:28, borderRadius:99, display:'inline-flex', alignItems:'center', justifyContent:'center', background:'var(--accent-soft)', color:'var(--negative)', fontSize:18, lineHeight:1, fontWeight:600, padding:0 }}>×</button>
                             </div>
                           );
                         })}
-                        <button onClick={() => onPickWeek(ws)} className="btn btn-soft"
-                          style={{ marginTop:12, width:'100%', fontSize:13 }}>
-                          {t.openWeek}
-                        </button>
+                        <button onClick={() => onPickWeek(ws)} className="btn btn-soft" style={{ marginTop:12, width:'100%', fontSize:13 }}>{t.openWeek}</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              }) : displayMonths.map((ms, i) => {
+                const me       = new Date(ms.getFullYear(), ms.getMonth() + 1, 0);
+                const mEntries = getEntriesInRange(state.entries, ms, me);
+                const carryIn  = carryInBeforeDate(state.entries, ms, state.settings.anfangssaldo);
+                const running  = computeRunning(mEntries, carryIn);
+                const endSaldo = running.length > 0 ? running[running.length-1].saldo : carryIn;
+                const mKey     = dateKey(ms.getFullYear(), ms.getMonth(), 1);
+                const isCurrent = mKey === todayMKey;
+                const isOpen   = openKey === mKey;
+                const monthLabel = `${MN[ms.getMonth()]} ${ms.getFullYear()}`;
+                return (
+                  <div key={mKey} style={{ borderBottom: i < displayMonths.length-1 ? '1px solid var(--line)' : 'none' }}>
+                    <div onClick={() => setOpenKey(isOpen ? null : mKey)}
+                      style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 16px', cursor:'pointer', transition:'background 0.12s', background: isOpen ? 'var(--line)' : '' }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:13.5, fontWeight:500, letterSpacing:'-0.01em', color:'var(--ink)', display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                          <span style={{ whiteSpace:'nowrap' }}>{monthLabel}</span>
+                          {isCurrent && <span style={{ fontSize:10, fontWeight:500, color:'var(--accent)', background:'var(--accent-soft)', padding:'2px 7px', borderRadius:99 }}>{t.current}</span>}
+                        </div>
+                        <div className="tnum" style={{ fontSize:11, color:'var(--ink-3)', marginTop:3 }}>
+                          {mEntries.length} {mEntries.length === 1 ? t.entryOne : t.entryMany}
+                        </div>
+                      </div>
+                      <div className="tnum" style={{ fontSize:14, fontWeight:600, color: endSaldo < 0 ? 'var(--negative)' : 'var(--ink)', flexShrink:0 }}>{fmtSaldo(endSaldo)}</div>
+                      <span style={{ display:'inline-flex', transition:'transform 0.2s var(--tap)', transform: isOpen ? 'rotate(90deg)' : 'none', flexShrink:0 }}><Chevron color="var(--ink-3)"/></span>
+                    </div>
+                    {isOpen && (
+                      <div style={{ padding:'2px 16px 12px' }}>
+                        {running.length === 0 ? (
+                          <div style={{ fontSize:12.5, color:'var(--ink-3)', padding:'8px 0 12px' }}>{t.noEntriesMonth}</div>
+                        ) : running.map(e => {
+                          const dt = parseKey(e.date);
+                          const isEin = e.type === 'einnahme';
+                          return (
+                            <div key={e.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 0', borderBottom:'1px solid var(--line)' }}>
+                              <span className="tnum" style={{ fontSize:11, color:'var(--ink-3)', width:52, flexShrink:0 }}>{fmtDayWd(dt, lang)}</span>
+                              <span style={{ flex:1, minWidth:0, fontSize:13, color:'var(--ink)', overflowWrap:'break-word' }}>{e.desc}</span>
+                              <span className="tnum" style={{ fontSize:13, fontWeight:500, whiteSpace:'nowrap', color: isEin ? 'var(--positive)' : 'var(--negative)' }}>
+                                {isEin ? '+' : '−'} {fmtAmount(e.amount)}
+                              </span>
+                              <button onClick={() => onDeleteEntry(e.id, e.date)} title={t.deleteEntry}
+                                style={{ appearance:'none', border:'none', cursor:'pointer', flexShrink:0, width:28, height:28, borderRadius:99, display:'inline-flex', alignItems:'center', justifyContent:'center', background:'var(--accent-soft)', color:'var(--negative)', fontSize:18, lineHeight:1, fontWeight:600, padding:0 }}>×</button>
+                            </div>
+                          );
+                        })}
+                        <button onClick={() => onPickMonth(ms)} className="btn btn-soft" style={{ marginTop:12, width:'100%', fontSize:13 }}>{t.openMonth}</button>
                       </div>
                     )}
                   </div>
@@ -1726,6 +1820,57 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       );
     }
 
+    // Category toggle + extensible custom-category list
+    function CategoryManager() {
+      const [val, setVal] = useState('');
+      const presets = CATEGORIES[s.lang] || CATEGORIES.de;
+      const custom  = s.customCategories || [];
+      const on = s.showCategory === true;
+      function add() {
+        const v = val.trim();
+        if (!v) return;
+        const taken = new Set([...presets, ...custom].map(c => c.toLowerCase()));
+        if (!taken.has(v.toLowerCase())) setS('customCategories', [...custom, v]);
+        setVal('');
+      }
+      function remove(c) { setS('customCategories', custom.filter(x => x !== c)); }
+      return (
+        <>
+          <SRow label={t.showCategory} sub={t.showCategorySub} right={
+            <Toggle on={on} onChange={v => setS('showCategory', v)}/>
+          }/>
+          {on && (
+            <div style={{ padding:'13px 0', borderTop:'1px solid var(--line)' }}>
+              <div className="srow-sub" style={{ marginBottom:8 }}>{t.presetLabel}</div>
+              <div style={{ display:'flex', gap:7, flexWrap:'wrap', marginBottom:16 }}>
+                {presets.map(c => (
+                  <span key={c} style={{ padding:'5px 11px', borderRadius:999, background:'var(--line)', color:'var(--ink-2)', fontSize:12.5 }}>{c}</span>
+                ))}
+              </div>
+              <div className="srow-sub" style={{ marginBottom:8 }}>{t.customCategoriesLabel}</div>
+              <div style={{ display:'flex', gap:7, flexWrap:'wrap', marginBottom:12 }}>
+                {custom.length === 0 && <span style={{ fontSize:12.5, color:'var(--ink-4)' }}>—</span>}
+                {custom.map(c => (
+                  <span key={c} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'5px 7px 5px 11px', borderRadius:999, background:'var(--accent-soft)', color:'var(--accent)', fontSize:12.5, fontWeight:500 }}>
+                    {c}
+                    <button onClick={() => remove(c)} title={t.deleteEntry} style={{ appearance:'none', border:'none', background:'transparent', cursor:'pointer', color:'var(--accent)', fontSize:16, lineHeight:1, padding:0, fontWeight:600 }}>×</button>
+                  </span>
+                ))}
+              </div>
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <input type="text" placeholder={t.addCategoryPlaceholder} value={val}
+                  onChange={e => setVal(e.target.value)}
+                  onKeyDown={e => { if (e.key==='Enter') add(); }}
+                  style={{ flex:1, border:'none', borderBottom:'1.5px solid var(--line-2)', background:'transparent', outline:'none', fontSize:14, fontFamily:'inherit', color:'var(--ink)', padding:'4px 0' }}
+                />
+                <button onClick={add} className="btn btn-soft" style={{ padding:'6px 16px', fontSize:18, lineHeight:1 }}>+</button>
+              </div>
+            </div>
+          )}
+        </>
+      );
+    }
+
     return (
       <div className="screen screen-enter">
         <div className="topbar">
@@ -1747,6 +1892,10 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
             <SRow label={t.showCalWeek} sub={t.showCalWeekSub} right={
               <Toggle on={s.showKW !== false} onChange={v => setS('showKW', v)}/>
             }/>
+          </SettingsGroup>
+
+          <SettingsGroup label={t.grpCategories} delay={0.05}>
+            <CategoryManager/>
           </SettingsGroup>
 
           <SettingsGroup label={(s.headerType||'firma')==='privat' ? t.grpHeaderPrivat : t.grpHeaderFirma} delay={0.08}>
@@ -1915,7 +2064,14 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
     function pickWeek(ws) {
       setAnchorDate(ws);
       setViewMode('woche');
-      setReturnToVerlauf(true);   // enable "back to history" in Kasse
+      setReturnToVerlauf(true);
+      setTab('kasse');
+    }
+
+    function pickMonth(ms) {
+      setAnchorDate(ms);
+      setViewMode('monat');
+      setReturnToVerlauf(true);
       setTab('kasse');
     }
 
@@ -1957,7 +2113,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
             />
           )}
           {tab === 'verlauf' && (
-            <VerlaufScreen key="verlauf" state={state} onPickWeek={pickWeek}
+            <VerlaufScreen key="verlauf" state={state} onPickWeek={pickWeek} onPickMonth={pickMonth}
               onDeleteEntry={(id, date) => handleSaveEntry(null, true, id, date)}/>
           )}
           {tab === 'einstellungen' && (
