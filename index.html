@@ -1,0 +1,1829 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Kasse" />
+  <meta name="theme-color" content="#FAFAF7" />
+  <title>Kasse</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+/* ─── Tokens ───────────────────────────────────────── */
+:root {
+  --bg:          #FAFAF7;
+  --surface:     #FFFFFF;
+  --ink:         #0E0E0C;
+  --ink-2:       #525048;
+  --ink-3:       #8C8A82;
+  --ink-4:       #C2BFB6;
+  --line:        #ECEAE3;
+  --line-2:      #DCD9D0;
+  --accent:      #C25C2E;
+  --accent-soft: #F8EDE3;
+  --positive:    #14532D;
+  --negative:    #B23A1B;
+
+  --font: "Inter Tight", "Inter", -apple-system, system-ui, sans-serif;
+
+  --tap:    cubic-bezier(0.2, 0, 0, 1);
+  --spring: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+html, body {
+  background: var(--bg);
+  font-family: var(--font);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+  color: var(--ink);
+  height: 100%;
+  overflow: hidden;
+}
+input, textarea, button, select { font-family: inherit; color: inherit; }
+
+/* ─── Layout ────────────────────────────────────────── */
+#root {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
+.app {
+  width: 100%;
+  max-width: 540px;
+  height: 100%;
+  margin: 0 auto;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  position: relative;   /* confine the bottom sheet / cover / toast to the app column (esp. on iPad) */
+}
+.screen-wrap {
+  flex: 1; min-height: 0;
+  position: relative; overflow: hidden;
+}
+.screen {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.scroll {
+  flex: 1; overflow-y: auto;
+  scrollbar-width: none;
+}
+.scroll::-webkit-scrollbar { display: none; }
+
+/* ─── Typography ────────────────────────────────────── */
+.tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+.kicker {
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.label-lg {
+  font-size: 28px; font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.muted   { color: var(--ink-3); }
+.muted-2 { color: var(--ink-2); }
+
+/* ─── Animations ────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; }
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp {
+  from { transform: translateY(100%); } to { transform: translateY(0); }
+}
+@keyframes screenEnter {
+  from { opacity: 0; transform: translateY(8px) scale(0.995); filter: blur(2px); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
+.fade-up    { animation: fadeUp    0.5s var(--spring) both; }
+.fade-in    { animation: fadeIn    0.6s var(--spring) both; }
+.screen-enter { animation: screenEnter 0.4s var(--spring) both; }
+
+/* ─── Dividers ──────────────────────────────────────── */
+.hair        { height: 1px; background: var(--line); }
+.hair-strong { background: var(--line-2); }
+
+/* ─── TopBar ────────────────────────────────────────── */
+.topbar {
+  padding: calc(env(safe-area-inset-top, 20px) + 14px) 20px 14px;
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 12px;
+  flex-shrink: 0;
+}
+.topbar-center { flex: 1; text-align: center; min-width: 0; }
+.topbar-side   { display: flex; gap: 4px; align-items: center; min-width: 44px; }
+.topbar-side-right { justify-content: flex-end; }
+
+/* ─── Tab bar ────────────────────────────────────────── */
+.tabbar {
+  position: relative;
+  padding: 8px 12px env(safe-area-inset-bottom, 8px);
+  display: flex; align-items: center; justify-content: space-around;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  flex-shrink: 0;
+  z-index: 20;
+}
+.tab {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 6px 4px 4px;
+  font-size: 11px; font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: color 0.2s var(--tap);
+  position: relative;
+  user-select: none;
+  background: none; border: none; outline: none;
+}
+.tab[aria-current="true"] { color: var(--ink); }
+.tab-icon { display: flex; align-items: center; justify-content: center; color: inherit; }
+.tab-indicator {
+  position: absolute;
+  top: 0; height: 1.5px;
+  background: var(--ink);
+  border-radius: 1px;
+  transition: left 0.45s var(--spring), width 0.45s var(--spring);
+  pointer-events: none;
+}
+
+/* ─── Buttons ────────────────────────────────────────── */
+.btn {
+  appearance: none; border: none; cursor: pointer; background: transparent;
+  padding: 10px 16px; font-family: inherit; font-size: 14px; font-weight: 500;
+  letter-spacing: -0.01em;
+  border-radius: 10px;
+  transition: background 0.15s var(--tap), color 0.15s var(--tap), transform 0.1s var(--tap);
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--ink); color: var(--bg); }
+.btn-primary:active { background: var(--ink-2); }
+.btn-ghost { color: var(--ink-2); }
+.btn-ghost:hover { color: var(--ink); }
+.btn-soft { background: var(--surface); border: 1px solid var(--line); color: var(--ink); }
+.btn-soft:active { background: var(--line); }
+.btn-icon {
+  width: 36px; height: 36px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; color: var(--ink-2);
+}
+.btn-icon:active { background: var(--line); }
+
+/* ─── FAB ────────────────────────────────────────────── */
+.fab {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  right: 16px;
+  width: 52px; height: 52px;
+  background: var(--ink); color: var(--bg);
+  border-radius: 999px; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.22);
+  transition: transform 0.15s var(--tap), background 0.15s var(--tap);
+  z-index: 10;
+}
+.fab:active { transform: scale(0.94); background: var(--ink-2); }
+
+/* ─── Sheet ──────────────────────────────────────────── */
+.sheet-backdrop {
+  position: absolute; inset: 0; z-index: 50;
+  background: rgba(0,0,0,0.32);
+  animation: fadeIn 0.25s var(--spring) both;
+}
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 51;
+  background: var(--bg);
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -12px 40px rgba(0,0,0,0.16);
+  animation: slideUp 0.4s var(--spring) both;
+  max-height: 92%;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sheet-handle {
+  width: 36px; height: 4px; border-radius: 99px;
+  background: var(--ink-4);
+  margin: 8px auto 4px;
+  flex-shrink: 0;
+}
+
+/* ─── Kasse Table ────────────────────────────────────── */
+.kasse-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
+}
+.kasse-table th {
+  font-size: 10px; font-weight: 600; letter-spacing: -0.01em; text-transform: none;
+  color: var(--ink-3); text-align: right; padding: 9px 7px 7px;
+  border-bottom: 1px solid var(--line-2);
+  white-space: nowrap;
+}
+.kasse-table th:first-child,
+.kasse-table th:nth-child(2) { text-align: left; }
+.kasse-table td {
+  padding: 10px 7px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  text-align: right;
+  font-size: 12px;
+}
+.kasse-table td:nth-child(3),
+.kasse-table td:nth-child(4),
+.kasse-table td:nth-child(5) { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kasse-table td:first-child { text-align: left; color: var(--ink-3); white-space: nowrap; }
+/* Description: never truncate — wrap to as many lines as needed */
+.kasse-table td:nth-child(2) {
+  text-align: left; color: var(--ink);
+  white-space: normal; overflow-wrap: anywhere; word-break: break-word;
+  line-height: 1.25;
+}
+.kasse-table tr:last-child td { border-bottom: none; }
+.kasse-table tr.row-tap td { cursor: pointer; transition: background 0.12s; }
+.kasse-table tr.row-tap:active td { background: var(--line); }
+.kasse-table tfoot tr td {
+  border-top: 1.5px solid var(--line-2);
+  border-bottom: none;
+  font-weight: 600;
+  padding-top: 12px; padding-bottom: 12px;
+  color: var(--ink);
+}
+.kasse-table tfoot tr td:first-child { color: var(--ink-3); font-weight: 400; }
+
+/* ─── Chip / Category pill ───────────────────────────── */
+.chip {
+  display: inline-flex; align-items: center;
+  padding: 5px 12px; border-radius: 999px;
+  font-size: 13px; font-weight: 500; letter-spacing: -0.01em;
+  cursor: pointer; border: 1.5px solid var(--line-2);
+  background: var(--surface); color: var(--ink-2);
+  transition: all 0.15s var(--tap);
+  user-select: none;
+}
+.chip[aria-pressed="true"] {
+  background: var(--ink); color: var(--bg); border-color: var(--ink);
+}
+
+/* ─── Settings row ───────────────────────────────────── */
+.srow {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 0; border-bottom: 1px solid var(--line);
+  cursor: default;
+}
+.srow:last-child { border-bottom: none; }
+.srow-label { flex: 1; min-width: 0; }
+.srow-title { font-size: 14px; font-weight: 500; letter-spacing: -0.01em; }
+.srow-sub { font-size: 12px; color: var(--ink-3); margin-top: 1px; }
+
+/* ─── Card ───────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* ─── Cover ──────────────────────────────────────────── */
+.cover {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: var(--bg);
+  padding: 0 32px;
+  z-index: 100;
+}
+
+/* ─── Undo Toast ─────────────────────────────────────── */
+.undo-toast {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom, 20px) + 80px);
+  left: 16px; right: 16px; z-index: 60;
+  background: var(--ink); color: var(--bg);
+  border-radius: 12px; padding: 12px 16px;
+  display: flex; align-items: center; gap: 12px;
+  animation: fadeUp 0.35s var(--spring) both;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.22);
+}
+
+/* ─── Print ──────────────────────────────────────────── */
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Pure white paper — kill the cream background everywhere */
+  html, body, #root, .app, .screen-wrap, .screen, .scroll {
+    background: #fff !important;
+  }
+  body { overflow: auto; height: auto; color: #000; }
+  #root { position: static; height: auto; }
+  /* @page margin:0 removes the browser's auto header (date/title) + footer (URL);
+     we re-create safe margins with padding on the printed area */
+  .app { max-width: 100%; height: auto; overflow: visible; padding: 14mm 13mm !important; }
+  .screen-wrap { overflow: visible; height: auto; position: static; }
+  .screen { position: static; overflow: visible; }
+  .scroll { overflow: visible; padding: 0 !important; }
+  .no-print { display: none !important; }
+  .tabbar { display: none !important; }
+  .fab { display: none !important; }
+  .undo-toast { display: none !important; }
+  .sheet-backdrop, .sheet { display: none !important; }
+  .topbar { display: none !important; }
+  .print-header { display: block !important; }
+  .card { border: none !important; box-shadow: none !important; background: #fff !important; }
+  .kasse-table { font-size: 12px; }
+  .kasse-table th, .kasse-table td { padding: 7px 6px; }
+  /* Show full descriptions on paper */
+  .kasse-table td:nth-child(2), .kasse-table th:nth-child(2) {
+    white-space: normal; overflow: visible; text-overflow: clip;
+  }
+  .kasse-table tr { break-inside: avoid; }
+  @page { margin: 0; size: A4 portrait; }
+}
+.print-header { display: none; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel" data-presets="react">
+  'use strict';
+  const { useEffect, useRef, useState, useLayoutEffect, useCallback } = React;
+
+  /* ═══════════════════════════════════════════
+     CONSTANTS
+  ═══════════════════════════════════════════ */
+  const PASS        = 'kasse2026';
+  const LS_DATA     = 'kasse_v1';
+  const LS_AUTH     = 'kasse-auth';
+  const LS_SETTINGS = 'kasse-settings';
+
+  const DEFAULT_SETTINGS = {
+    firma:          'Garage Zito & Co.',
+    adresse:        'Im Nägelibaum 8 – 8352 Räterschen',
+    telefon:        '052 232 06 09',
+    email:          'm.zito@gmx.ch',
+    currency:       'SFr.',
+    currencyPreset: 'chf',  // 'chf' | 'eur' | 'usd' | 'custom'
+    weekStartDay:   6,       // 0=So … 6=Sa (default Samstag)
+    anfangssaldo:   0,       // Startsaldo vor dem allerersten Eintrag
+    showKW:         true,    // Kalenderwoche anzeigen
+    headerType:     'firma', // 'firma' | 'privat' — Kopfzeilen-Typ für PDF
+    lang:           'de',    // 'de' | 'en' | 'it' | 'fr'
+  };
+
+  /* runtime week-start day — updated from settings (0=So … 6=Sa) */
+  let WEEK_START_DAY = (() => {
+    try { const s = JSON.parse(localStorage.getItem(LS_SETTINGS)); if (s?.weekStartDay != null) return Number(s.weekStartDay); } catch {}
+    return 6; // default Samstag
+  })();
+
+  /* ═══════════════════════════════════════════
+     UTILS
+  ═══════════════════════════════════════════ */
+  /* ── Locale data ─────────────────────────────────────── */
+  const MONTHS = {
+    de: ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'],
+    en: ['January','February','March','April','May','June','July','August','September','October','November','December'],
+    it: ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'],
+    fr: ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'],
+  };
+  const WD_SHORT = {
+    de: ['So','Mo','Di','Mi','Do','Fr','Sa'],
+    en: ['Su','Mo','Tu','We','Th','Fr','Sa'],
+    it: ['Do','Lu','Ma','Me','Gi','Ve','Sa'],
+    fr: ['Di','Lu','Ma','Me','Je','Ve','Sa'],
+  };
+  const WEEKDAY_FULL = {
+    de: ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'],
+    en: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+    it: ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'],
+    fr: ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'],
+  };
+  const LANG_NAMES = { de:'Deutsch', en:'English', it:'Italiano', fr:'Français' };
+
+  /* ── UI strings ──────────────────────────────────────── */
+  const STRINGS = {
+    de: {
+      docName:'Kassenbuch', password:'Passwort', wrongPassword:'Falsches Passwort', open:'Öffnen',
+      tabKasse:'Kasse', tabVerlauf:'Verlauf', tabSettings:'Einstellungen',
+      calWeek:'Kalenderwoche', week:'Woche', month:'Monat',
+      colDate:'Datum', colText:'Text', colIncome:'Einnahmen', colExpense:'Ausgaben', colBalance:'Saldo',
+      carryForward:'Saldovortrag', total:'Total',
+      noEntriesWeek:'Keine Einträge diese Woche', noEntriesMonth:'Keine Einträge diesen Monat',
+      tapToAdd:'Tippe + um einen Eintrag hinzuzufügen',
+      print:'Drucken / PDF', addEntry:'Eintrag hinzufügen', pickDate:'Datum wählen',
+      newEntry:'Neuer Eintrag', editEntry:'Eintrag bearbeiten', cancel:'Abbrechen', done:'Fertig',
+      date:'Datum', description:'Beschreibung', amount:'Betrag', tapToConfirm:'Antippen zum Bestätigen',
+      income:'Einnahme', expense:'Ausgabe', descPlaceholder:'z.B. Rg.nr. 26.24, Landi …', deleteEntry:'Eintrag löschen',
+      archive:'Archiv', history:'Verlauf', noEntriesYet:'Noch keine Einträge', current:'Aktuell',
+      entryOne:'Eintrag', entryMany:'Einträge', backToHistory:'Zurück zum Verlauf',
+      setup:'Setup', settings:'Einstellungen',
+      grpBalance:'Saldo', openingBalance:'Anfangssaldo', openingBalanceSub:'Startbetrag vor dem ersten Eintrag',
+      grpDisplay:'Darstellung', currencyLabel:'Währung', weekStart:'Wochenbeginn', weekStartSub:'Erster Tag der Woche',
+      showCalWeek:'Kalenderwoche anzeigen', showCalWeekSub:'KW in Kasse, Verlauf & PDF', language:'Sprache',
+      custom:'Eigene', customCurrencyPlaceholder:'z.B. Fr., CHF, DKK …',
+      grpHeaderFirma:'Firma (PDF-Header)', grpHeaderPrivat:'Privatperson (PDF-Header)',
+      headerKind:'Art der Kopfzeile', headerKindSub:'Erscheint oben im Ausdruck / PDF',
+      firma:'Firma', privatperson:'Privatperson', companyName:'Firmenname', name:'Name',
+      address:'Adresse', phone:'Telefon', email:'E-Mail',
+      grpData:'Daten', exportBackup:'Sicherung herunterladen', exportSub:'.json Export',
+      importBackup:'Sicherung laden', importSub:'.json Import', resetAll:'Alles zurücksetzen', logout:'Abmelden',
+      dataLocal:'Alle Daten verbleiben auf diesem Gerät.',
+      confirmImport:'Sicherung laden? Überschreibt aktuelle Daten.', importError:'Fehler beim Import',
+      confirmReset:'Alle Einträge löschen?',
+      undoDeleted:'Eintrag gelöscht', undoSaved:'Eintrag gespeichert', undoAdded:'Eintrag hinzugefügt', undo:'Rückgängig',
+    },
+    en: {
+      docName:'Cash book', password:'Password', wrongPassword:'Wrong password', open:'Open',
+      tabKasse:'Cash book', tabVerlauf:'History', tabSettings:'Settings',
+      calWeek:'Calendar week', week:'Week', month:'Month',
+      colDate:'Date', colText:'Text', colIncome:'Income', colExpense:'Expenses', colBalance:'Balance',
+      carryForward:'Carryover', total:'Total',
+      noEntriesWeek:'No entries this week', noEntriesMonth:'No entries this month',
+      tapToAdd:'Tap + to add an entry',
+      print:'Print / PDF', addEntry:'Add entry', pickDate:'Choose date',
+      newEntry:'New entry', editEntry:'Edit entry', cancel:'Cancel', done:'Done',
+      date:'Date', description:'Description', amount:'Amount', tapToConfirm:'Tap to confirm',
+      income:'Income', expense:'Expense', descPlaceholder:'e.g. Inv. 26.24, Landi …', deleteEntry:'Delete entry',
+      archive:'Archive', history:'History', noEntriesYet:'No entries yet', current:'Current',
+      entryOne:'entry', entryMany:'entries', backToHistory:'Back to history',
+      setup:'Setup', settings:'Settings',
+      grpBalance:'Balance', openingBalance:'Opening balance', openingBalanceSub:'Starting amount before the first entry',
+      grpDisplay:'Display', currencyLabel:'Currency', weekStart:'Week start', weekStartSub:'First day of the week',
+      showCalWeek:'Show calendar week', showCalWeekSub:'CW in cash book, history & PDF', language:'Language',
+      custom:'Custom', customCurrencyPlaceholder:'e.g. Fr., CHF, DKK …',
+      grpHeaderFirma:'Company (PDF header)', grpHeaderPrivat:'Private person (PDF header)',
+      headerKind:'Header type', headerKindSub:'Appears at the top of the printout / PDF',
+      firma:'Company', privatperson:'Private person', companyName:'Company name', name:'Name',
+      address:'Address', phone:'Phone', email:'Email',
+      grpData:'Data', exportBackup:'Download backup', exportSub:'.json export',
+      importBackup:'Load backup', importSub:'.json import', resetAll:'Reset everything', logout:'Log out',
+      dataLocal:'All data stays on this device.',
+      confirmImport:'Load backup? This overwrites current data.', importError:'Import error',
+      confirmReset:'Delete all entries?',
+      undoDeleted:'Entry deleted', undoSaved:'Entry saved', undoAdded:'Entry added', undo:'Undo',
+    },
+    it: {
+      docName:'Libro cassa', password:'Password', wrongPassword:'Password errata', open:'Apri',
+      tabKasse:'Cassa', tabVerlauf:'Storico', tabSettings:'Impostazioni',
+      calWeek:'Settimana', week:'Settimana', month:'Mese',
+      colDate:'Data', colText:'Testo', colIncome:'Entrate', colExpense:'Uscite', colBalance:'Saldo',
+      carryForward:'Riporto', total:'Totale',
+      noEntriesWeek:'Nessun movimento questa settimana', noEntriesMonth:'Nessun movimento questo mese',
+      tapToAdd:'Tocca + per aggiungere una voce',
+      print:'Stampa / PDF', addEntry:'Aggiungi voce', pickDate:'Scegli data',
+      newEntry:'Nuova voce', editEntry:'Modifica voce', cancel:'Annulla', done:'Fatto',
+      date:'Data', description:'Descrizione', amount:'Importo', tapToConfirm:'Tocca per confermare',
+      income:'Entrata', expense:'Uscita', descPlaceholder:'es. Fatt. 26.24, Landi …', deleteEntry:'Elimina voce',
+      archive:'Archivio', history:'Storico', noEntriesYet:'Ancora nessun movimento', current:'Attuale',
+      entryOne:'voce', entryMany:'voci', backToHistory:'Torna allo storico',
+      setup:'Setup', settings:'Impostazioni',
+      grpBalance:'Saldo', openingBalance:'Saldo iniziale', openingBalanceSub:'Importo iniziale prima della prima voce',
+      grpDisplay:'Visualizzazione', currencyLabel:'Valuta', weekStart:'Inizio settimana', weekStartSub:'Primo giorno della settimana',
+      showCalWeek:'Mostra settimana', showCalWeekSub:'in cassa, storico e PDF', language:'Lingua',
+      custom:'Propria', customCurrencyPlaceholder:'es. Fr., CHF, DKK …',
+      grpHeaderFirma:'Azienda (intestazione PDF)', grpHeaderPrivat:'Persona privata (intestazione PDF)',
+      headerKind:'Tipo di intestazione', headerKindSub:'Appare in alto nella stampa / PDF',
+      firma:'Azienda', privatperson:'Persona privata', companyName:'Nome azienda', name:'Nome',
+      address:'Indirizzo', phone:'Telefono', email:'E-mail',
+      grpData:'Dati', exportBackup:'Scarica backup', exportSub:'esportazione .json',
+      importBackup:'Carica backup', importSub:'importazione .json', resetAll:'Azzera tutto', logout:'Esci',
+      dataLocal:'Tutti i dati restano su questo dispositivo.',
+      confirmImport:'Caricare il backup? Sovrascrive i dati attuali.', importError:'Errore di importazione',
+      confirmReset:'Eliminare tutte le voci?',
+      undoDeleted:'Voce eliminata', undoSaved:'Voce salvata', undoAdded:'Voce aggiunta', undo:'Annulla',
+    },
+    fr: {
+      docName:'Livre de caisse', password:'Mot de passe', wrongPassword:'Mot de passe incorrect', open:'Ouvrir',
+      tabKasse:'Caisse', tabVerlauf:'Historique', tabSettings:'Réglages',
+      calWeek:'Semaine', week:'Semaine', month:'Mois',
+      colDate:'Date', colText:'Texte', colIncome:'Recettes', colExpense:'Dépenses', colBalance:'Solde',
+      carryForward:'Report', total:'Total',
+      noEntriesWeek:'Aucune entrée cette semaine', noEntriesMonth:'Aucune entrée ce mois',
+      tapToAdd:'Touchez + pour ajouter une entrée',
+      print:'Imprimer / PDF', addEntry:'Ajouter une entrée', pickDate:'Choisir la date',
+      newEntry:'Nouvelle entrée', editEntry:'Modifier l’entrée', cancel:'Annuler', done:'Terminé',
+      date:'Date', description:'Description', amount:'Montant', tapToConfirm:'Touchez pour confirmer',
+      income:'Recette', expense:'Dépense', descPlaceholder:'p.ex. Fact. 26.24, Landi …', deleteEntry:'Supprimer l’entrée',
+      archive:'Archive', history:'Historique', noEntriesYet:'Aucune entrée', current:'Actuel',
+      entryOne:'entrée', entryMany:'entrées', backToHistory:'Retour à l’historique',
+      setup:'Configuration', settings:'Réglages',
+      grpBalance:'Solde', openingBalance:'Solde initial', openingBalanceSub:'Montant de départ avant la première entrée',
+      grpDisplay:'Affichage', currencyLabel:'Devise', weekStart:'Début de semaine', weekStartSub:'Premier jour de la semaine',
+      showCalWeek:'Afficher la semaine', showCalWeekSub:'dans caisse, historique et PDF', language:'Langue',
+      custom:'Autre', customCurrencyPlaceholder:'p.ex. Fr., CHF, DKK …',
+      grpHeaderFirma:'Entreprise (en-tête PDF)', grpHeaderPrivat:'Particulier (en-tête PDF)',
+      headerKind:'Type d’en-tête', headerKindSub:'Apparaît en haut de l’impression / PDF',
+      firma:'Entreprise', privatperson:'Particulier', companyName:'Nom de l’entreprise', name:'Nom',
+      address:'Adresse', phone:'Téléphone', email:'E-mail',
+      grpData:'Données', exportBackup:'Télécharger la sauvegarde', exportSub:'export .json',
+      importBackup:'Charger la sauvegarde', importSub:'import .json', resetAll:'Tout réinitialiser', logout:'Déconnexion',
+      dataLocal:'Toutes les données restent sur cet appareil.',
+      confirmImport:'Charger la sauvegarde ? Les données actuelles seront écrasées.', importError:'Erreur d’importation',
+      confirmReset:'Supprimer toutes les entrées ?',
+      undoDeleted:'Entrée supprimée', undoSaved:'Entrée enregistrée', undoAdded:'Entrée ajoutée', undo:'Annuler',
+    },
+  };
+  const tr   = lang => STRINGS[lang] || STRINGS.de;
+  const mons = lang => MONTHS[lang]  || MONTHS.de;
+  const wdsh = lang => WD_SHORT[lang]|| WD_SHORT.de;
+
+  const pad     = n => String(n).padStart(2, '0');
+  const dateKey = (y, m, d) => `${y}-${pad(m+1)}-${pad(d)}`;
+
+  function parseKey(k) {
+    const [y, m, d] = k.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  // Returns the week-start on or before a given date (uses WEEK_START_DAY: 0=So…6=Sa)
+  function getWeekStart(date) {
+    const d = new Date(date);
+    const wd = d.getDay(); // 0=Sun … 6=Sat
+    const diff = (wd - WEEK_START_DAY + 7) % 7;
+    d.setDate(d.getDate() - diff);
+    return d;
+  }
+
+  // Returns array of 7 date objects (Sa … Fr) for a week starting at satDate
+  function weekDays(satDate) {
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(satDate);
+      d.setDate(d.getDate() + i);
+      days.push(d);
+    }
+    return days;
+  }
+
+  function weekEndDate(satDate) {
+    const d = new Date(satDate);
+    d.setDate(d.getDate() + 6);
+    return d;
+  }
+
+  function prevWeek(satDate) {
+    const d = new Date(satDate);
+    d.setDate(d.getDate() - 7);
+    return d;
+  }
+
+  function nextWeek(satDate) {
+    const d = new Date(satDate);
+    d.setDate(d.getDate() + 7);
+    return d;
+  }
+
+  function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); } // m = 0-based
+
+  // ISO 8601 calendar week number (Mo–So) for a given date
+  function isoWeek(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = (d.getUTCDay() + 6) % 7;           // Mo=0 … So=6
+    d.setUTCDate(d.getUTCDate() - dayNum + 3);        // Donnerstag dieser ISO-Woche
+    const firstThu = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+    const firstDayNum = (firstThu.getUTCDay() + 6) % 7;
+    firstThu.setUTCDate(firstThu.getUTCDate() - firstDayNum + 3);
+    return 1 + Math.round((d - firstThu) / (7 * 864e5));
+  }
+
+  // KW number for a week → based on its Thursday (for ISO 8601 week calc)
+  function weekKW(wsDate) {
+    const thu = new Date(wsDate);
+    const thuOffset = (4 - WEEK_START_DAY + 7) % 7; // 4 = Thursday
+    thu.setDate(thu.getDate() + thuOffset);
+    return isoWeek(thu);
+  }
+
+  const fmtDay     = date => `${pad(date.getDate())}.${pad(date.getMonth()+1)}.`;            // 30.05.
+  const fmtDayWd   = (date, lang='de') => `${wdsh(lang)[date.getDay()]} ${pad(date.getDate())}.${pad(date.getMonth()+1)}.`; // Mo 30.05.
+  const fmtDateFull = date => `${pad(date.getDate())}.${pad(date.getMonth()+1)}.${date.getFullYear()}`; // 30.05.2026
+
+  function fmtAmount(n) {
+    if (n == null || n === 0) return '';
+    return Math.abs(n).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function fmtSaldo(n) {
+    const sign = n < 0 ? '−' : '';
+    return sign + Math.abs(n).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function uid() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+
+  // Get all entries for a week (as flat sorted array)
+  function getWeekEntries(entries, satDate) {
+    const days = weekDays(satDate);
+    const result = [];
+    for (const day of days) {
+      const k = dateKey(day.getFullYear(), day.getMonth(), day.getDate());
+      const dayEntries = entries[k] || [];
+      dayEntries.forEach(e => result.push({ ...e, date: k }));
+    }
+    // Sort by date, then by insertion order (they're already in insertion order per day)
+    result.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+    return result;
+  }
+
+  // Compute running saldo for a list of entries, starting from a carry-over balance
+  function computeRunning(weekEntries, startSaldo = 0) {
+    let saldo = startSaldo;
+    return weekEntries.map(e => {
+      if (e.type === 'einnahme') saldo += e.amount;
+      else saldo -= e.amount;
+      return { ...e, saldo };
+    });
+  }
+
+  // All entries within [start, end] inclusive, flattened + sorted chronologically
+  function getEntriesInRange(entries, start, end) {
+    const sk = dateKey(start.getFullYear(), start.getMonth(), start.getDate());
+    const ek = dateKey(end.getFullYear(), end.getMonth(), end.getDate());
+    const result = [];
+    for (const k of Object.keys(entries)) {
+      if (k >= sk && k <= ek) (entries[k] || []).forEach(e => result.push({ ...e, date: k }));
+    }
+    result.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+    return result;
+  }
+
+  // Cumulative saldo of Anfangssaldo + ALL entries strictly before a date (the Saldovortrag)
+  function carryInBeforeDate(entries, startDate, anfangssaldo = 0) {
+    const sk = dateKey(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    let saldo = anfangssaldo;
+    for (const k of Object.keys(entries)) {
+      if (k >= sk) continue; // YYYY-MM-DD strings compare chronologically
+      for (const e of (entries[k] || [])) {
+        saldo += e.type === 'einnahme' ? e.amount : -e.amount;
+      }
+    }
+    return saldo;
+  }
+
+  // Whether a Saldovortrag row should be shown (opening balance or prior entries exist)
+  function hasContentBefore(entries, startDate, anfangssaldo = 0) {
+    if (anfangssaldo !== 0) return true;
+    const sk = dateKey(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    for (const k of Object.keys(entries)) {
+      if (k < sk && (entries[k] || []).length > 0) return true;
+    }
+    return false;
+  }
+
+  // Get all week-start dates that have entries, sorted newest first
+  function allWeekStarts(entries) {
+    const seen = new Set();
+    for (const k of Object.keys(entries)) {
+      if ((entries[k] || []).length === 0) continue;
+      const d = parseKey(k);
+      const ws = getWeekStart(d);
+      seen.add(dateKey(ws.getFullYear(), ws.getMonth(), ws.getDate()));
+    }
+    return [...seen].sort((a, b) => b.localeCompare(a)).map(parseKey);
+  }
+
+  function loadData() {
+    try { return JSON.parse(localStorage.getItem(LS_DATA)) || {}; } catch { return {}; }
+  }
+  function loadSettings() {
+    try {
+      const s = JSON.parse(localStorage.getItem(LS_SETTINGS));
+      if (s) return { ...DEFAULT_SETTINGS, ...s };
+    } catch {}
+    return { ...DEFAULT_SETTINGS };
+  }
+
+  /* ═══════════════════════════════════════════
+     SHARED COMPONENTS
+  ═══════════════════════════════════════════ */
+  function Chevron({ dir = 'right', size = 14, color = 'currentColor', stroke = 1.6 }) {
+    const rotate = { right:0, left:180, up:-90, down:90 }[dir] || 0;
+    return (
+      <svg width={size} height={size} viewBox="0 0 16 16"
+        style={{ transform:`rotate(${rotate}deg)`, transition:'transform 0.2s var(--tap)', display:'block' }}>
+        <path d="M6 4l4 4-4 4" stroke={color} strokeWidth={stroke} fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    );
+  }
+
+  function PlusIcon({ size = 22, color = 'currentColor' }) {
+    return <svg width={size} height={size} viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke={color} strokeWidth="1.8" strokeLinecap="round"/></svg>;
+  }
+
+  function PrintIcon({ size = 18, color = 'currentColor' }) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+        stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 9V2h12v7"/>
+        <rect x="6" y="14" width="12" height="8" rx="1"/>
+        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+        <circle cx="18" cy="11.5" r="0.5" fill={color}/>
+      </svg>
+    );
+  }
+
+  function TabKasseIcon({ size=22, color='currentColor' }) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+        stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="5" width="20" height="14" rx="2"/>
+        <path d="M2 10h20"/>
+        <path d="M6 15h4M14 15h4"/>
+      </svg>
+    );
+  }
+  function TabVerlaufIcon({ size=22, color='currentColor' }) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+        stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <path d="M16 2v4M8 2v4M3 10h18"/>
+      </svg>
+    );
+  }
+  function TabSettingsIcon({ size=22, color='currentColor' }) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+        stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    );
+  }
+
+  function TabBar({ tabs, active, onChange }) {
+    const refs = useRef({});
+    const [ind, setInd] = useState({ left:0, width:0 });
+    useLayoutEffect(() => {
+      const el = refs.current[active];
+      if (el) {
+        const pr = el.parentElement.getBoundingClientRect();
+        const label = el.querySelector('.tab-label');
+        if (label) {
+          const tr = label.getBoundingClientRect();
+          setInd({ left: tr.left - pr.left, width: tr.width });
+        }
+      }
+    }, [active]);
+    return (
+      <div className="tabbar no-print">
+        <div className="tab-indicator" style={ind} />
+        {tabs.map(t => (
+          <button key={t.id} ref={el => (refs.current[t.id]=el)}
+            className="tab" aria-current={active===t.id} onClick={() => onChange(t.id)}>
+            <span className="tab-icon">{t.icon}</span>
+            <span className="tab-label">{t.label}</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  function UndoToast({ label, onUndo, undoLabel = 'Rückgängig' }) {
+    return (
+      <div className="undo-toast">
+        <span style={{ flex:1, fontSize:13, fontWeight:500, letterSpacing:'-0.01em' }}>{label}</span>
+        <button onClick={onUndo} style={{
+          appearance:'none', border:'none', cursor:'pointer',
+          background:'rgba(255,255,255,0.14)', color:'var(--bg)',
+          padding:'6px 14px', borderRadius:8,
+          fontSize:13, fontWeight:600, fontFamily:'inherit', letterSpacing:'-0.01em',
+        }}>{undoLabel}</button>
+      </div>
+    );
+  }
+
+  function Toggle({ on, onChange }) {
+    return (
+      <button onClick={() => onChange(!on)} aria-pressed={on} style={{
+        width:46, height:28, borderRadius:999, border:'none', cursor:'pointer', padding:0,
+        background: on ? 'var(--positive)' : 'var(--line-2)',
+        position:'relative', flexShrink:0,
+        transition:'background 0.2s var(--tap)',
+      }}>
+        <span style={{
+          position:'absolute', top:3, left: on ? 21 : 3,
+          width:22, height:22, borderRadius:999, background:'#fff',
+          boxShadow:'0 1px 3px rgba(0,0,0,0.25)',
+          transition:'left 0.2s var(--spring)',
+        }}/>
+      </button>
+    );
+  }
+
+  function SettingsGroup({ label, delay = 0, children }) {
+    return (
+      <div className="fade-up" style={{ animationDelay:`${delay}s`, marginTop:22 }}>
+        <div className="kicker" style={{ marginBottom:10 }}>{label}</div>
+        <div className="card" style={{ padding:'2px 16px' }}>{children}</div>
+      </div>
+    );
+  }
+
+  function SRow({ label, sub, right, onClick, danger, chevron }) {
+    return (
+      <div className="srow" onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
+        <div className="srow-label">
+          <div className="srow-title" style={{ color: danger ? 'var(--negative)' : 'var(--ink)' }}>{label}</div>
+          {sub && <div className="srow-sub">{sub}</div>}
+        </div>
+        {right}
+        {chevron && <Chevron color="var(--ink-3)"/>}
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════
+     COVER / AUTH
+  ═══════════════════════════════════════════ */
+  function CoverScreen({ onAuth, lang = 'de' }) {
+    const t = tr(lang);
+    const [pass, setPass] = useState('');
+    const [error, setError] = useState(false);
+
+    function tryAuth() {
+      if (pass === PASS) {
+        localStorage.setItem(LS_AUTH, 'yes');
+        onAuth();
+      } else {
+        setError(true); setPass('');
+        setTimeout(() => setError(false), 2400);
+      }
+    }
+
+    return (
+      <div className="cover">
+        <div style={{ marginBottom:56, textAlign:'center' }}>
+          <div style={{ fontSize:11, fontWeight:500, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--ink-3)', marginBottom:10 }}>
+            Garage Zito
+          </div>
+          <div style={{ fontSize:28, fontWeight:500, letterSpacing:'-0.03em', color:'var(--ink)' }}>
+            {t.docName}
+          </div>
+        </div>
+        <div style={{ width:'100%', maxWidth:280 }}>
+          <input
+            type="password" placeholder={t.password}
+            value={pass}
+            onChange={e => setPass(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && tryAuth()}
+            autoFocus
+            style={{
+              width:'100%', background:'transparent', border:'none',
+              borderBottom:`1.5px solid ${error ? 'var(--negative)' : 'var(--line-2)'}`,
+              padding:'12px 0', fontSize:17, fontFamily:'inherit',
+              color:'var(--ink)', outline:'none', textAlign:'center',
+              letterSpacing:'0.15em', transition:'border-color 0.2s',
+            }}
+          />
+          <div style={{ height:22, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            {error && (
+              <span style={{ fontSize:12, color:'var(--negative)', animation:'fadeUp 0.2s var(--spring) both' }}>
+                {t.wrongPassword}
+              </span>
+            )}
+          </div>
+        </div>
+        <button className="btn btn-primary" onClick={tryAuth}
+          style={{ marginTop:16, width:'100%', maxWidth:280, padding:'14px 18px' }}>
+          {t.open}
+        </button>
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════
+     ENTRY EDITOR (BOTTOM SHEET)
+  ═══════════════════════════════════════════ */
+  function EntryEditor({ state, onSave, onClose, editEntry = null, defaultDate = null }) {
+    const isEdit = !!editEntry;
+    const t = tr(state.settings.lang);
+
+    const [date, setDate]     = useState(editEntry?.date   || defaultDate || dateKey(state.today.getFullYear(), state.today.getMonth(), state.today.getDate()));
+    const [desc, setDesc]     = useState(editEntry?.desc   || '');
+    const [amount, setAmount] = useState(editEntry ? String(editEntry.amount) : '');
+    const [type, setType]     = useState(editEntry?.type   || 'einnahme');
+
+    function save(overrideType) {
+      const ty = overrideType !== undefined ? overrideType : type;
+      const amt = parseFloat(amount.replace(',', '.').replace(/[^0-9.]/g, ''));
+      if (!desc.trim() || isNaN(amt) || amt <= 0) return;
+
+      const entry = { id: editEntry?.id || uid(), desc: desc.trim(), amount: amt, type: ty, cat: 'custom', date };
+      onSave(entry, isEdit);
+      onClose();
+    }
+
+    // Click Einnahme / Ausgabe → set type AND confirm immediately if fields are valid
+    function handleTypeAndSave(newType) {
+      setType(newType);
+      const amt = parseFloat(amount.replace(',', '.').replace(/[^0-9.]/g, ''));
+      if (desc.trim() && !isNaN(amt) && amt > 0) {
+        const entry = { id: editEntry?.id || uid(), desc: desc.trim(), amount: amt, type: newType, cat: 'custom', date };
+        onSave(entry, isEdit);
+        onClose();
+      }
+    }
+
+    const amtValid = amount === '' || !isNaN(parseFloat(amount.replace(',', '.')));
+
+    return (
+      <>
+        <div className="sheet-backdrop" onClick={onClose}/>
+        <div className="sheet">
+          <div className="sheet-handle"/>
+          <div style={{ padding:'12px 20px 12px', display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'1px solid var(--line)', flexShrink:0 }}>
+            <button className="btn btn-ghost" onClick={onClose} style={{ padding:'6px 0', fontSize:14 }}>{t.cancel}</button>
+            <div style={{ textAlign:'center', flex:1 }}>
+              <div className="kicker">{isEdit ? t.editEntry : t.newEntry}</div>
+            </div>
+            <button className="btn" onClick={() => save()}
+              style={{ padding:'6px 0', fontSize:14, fontWeight:600, color:'var(--accent)', opacity: (!desc.trim() || !amount) ? 0.4 : 1 }}>
+              {t.done}
+            </button>
+          </div>
+          <div className="scroll" style={{ padding:'22px 20px 32px' }}>
+
+            {/* Date */}
+            <div style={{ marginBottom:18 }}>
+              <div className="kicker" style={{ marginBottom:8 }}>{t.date}</div>
+              <input
+                type="date" value={date}
+                onChange={e => setDate(e.target.value)}
+                style={{
+                  width:'100%', background:'var(--surface)',
+                  border:'1px solid var(--line-2)',
+                  borderRadius:8, padding:'10px 12px',
+                  fontSize:15, fontFamily:'inherit', color:'var(--ink)',
+                  outline:'none',
+                }}
+              />
+            </div>
+
+            {/* Description */}
+            <div style={{ marginBottom:18 }}>
+              <div className="kicker" style={{ marginBottom:8 }}>{t.description}</div>
+              <input
+                type="text" placeholder={t.descPlaceholder}
+                value={desc} onChange={e => setDesc(e.target.value)}
+                style={{
+                  width:'100%', background:'var(--surface)',
+                  border:'1px solid var(--line-2)',
+                  borderRadius:8, padding:'10px 12px',
+                  fontSize:15, fontFamily:'inherit', color:'var(--ink)',
+                  outline:'none',
+                }}
+              />
+            </div>
+
+            {/* Amount */}
+            <div style={{ marginBottom:18 }}>
+              <div className="kicker" style={{ marginBottom:8 }}>{t.amount} ({state.settings.currency || 'SFr.'})</div>
+              <input
+                type="text" inputMode="decimal" placeholder="0.00"
+                value={amount} onChange={e => setAmount(e.target.value.replace(/[^0-9.,]/g,''))}
+                style={{
+                  width:'100%', background:'var(--surface)',
+                  border:`1px solid ${amtValid ? 'var(--line-2)' : 'var(--negative)'}`,
+                  borderRadius:8, padding:'10px 12px',
+                  fontSize:22, fontFamily:'inherit', color:'var(--ink)',
+                  outline:'none', fontVariantNumeric:'tabular-nums',
+                  letterSpacing:'-0.01em', fontWeight:500,
+                }}
+              />
+            </div>
+
+            {/* Type — always coloured; tap to set type and confirm if form is complete */}
+            <div style={{ marginBottom:24 }}>
+              <div className="kicker" style={{ marginBottom:8 }}>{t.tapToConfirm}</div>
+              <div style={{ display:'flex', gap:10 }}>
+                <button onClick={() => handleTypeAndSave('einnahme')} style={{
+                  flex:1, padding:'13px 10px', borderRadius:10,
+                  border: `2px solid ${type==='einnahme' ? 'var(--positive)' : '#86efac'}`,
+                  background: type==='einnahme' ? '#dcfce7' : 'var(--surface)',
+                  color: 'var(--positive)',
+                  fontFamily:'inherit', fontSize:15, fontWeight:700, cursor:'pointer',
+                  transition:'all 0.15s var(--tap)',
+                  whiteSpace:'nowrap',
+                  letterSpacing:'-0.01em',
+                }}>{t.income}</button>
+                <button onClick={() => handleTypeAndSave('ausgabe')} style={{
+                  flex:1, padding:'13px 10px', borderRadius:10,
+                  border: `2px solid ${type==='ausgabe' ? 'var(--negative)' : '#fca5a5'}`,
+                  background: type==='ausgabe' ? '#fee2e2' : 'var(--surface)',
+                  color: 'var(--negative)',
+                  fontFamily:'inherit', fontSize:15, fontWeight:700, cursor:'pointer',
+                  transition:'all 0.15s var(--tap)',
+                  whiteSpace:'nowrap',
+                  letterSpacing:'-0.01em',
+                }}>{t.expense}</button>
+              </div>
+            </div>
+
+            {isEdit && (
+              <button onClick={() => { onSave(null, true, editEntry.id, editEntry.date); onClose(); }}
+                className="btn btn-soft"
+                style={{ width:'100%', color:'var(--negative)', borderColor:'var(--negative)', marginTop:4 }}>
+                {t.deleteEntry}
+              </button>
+            )}
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  /* ═══════════════════════════════════════════
+     KASSE SCREEN
+  ═══════════════════════════════════════════ */
+  function KasseScreen({ state, onOpenEntry, anchorDate, viewMode, onNavigate, onSetView, onJumpDate, onBack }) {
+    const { settings } = state;
+    const isWeek = viewMode === 'woche';
+    const showKW = settings.showKW !== false;
+
+    const lang = settings.lang || 'de';
+    const t    = tr(lang);
+    const MN   = mons(lang);
+
+    // Determine the period [periodStart, periodEnd] and labels
+    let periodStart, periodEnd, title, kicker, printLabel, emptyText, isCurrent, pdfName;
+    if (isWeek) {
+      periodStart = getWeekStart(anchorDate);
+      periodEnd   = weekEndDate(periodStart);
+      const kw    = weekKW(periodStart);
+      isCurrent   = dateKey(periodStart.getFullYear(), periodStart.getMonth(), periodStart.getDate())
+        === dateKey(getWeekStart(state.today).getFullYear(), getWeekStart(state.today).getMonth(), getWeekStart(state.today).getDate());
+      title       = `${fmtDateFull(periodStart)} – ${fmtDateFull(periodEnd)}`;
+      kicker      = showKW ? `${t.calWeek} ${kw}` : t.week;
+      printLabel  = showKW
+        ? `${t.week} ${fmtDateFull(periodStart)} – ${fmtDateFull(periodEnd)} · ${t.calWeek} ${kw}`
+        : `${t.week} ${fmtDateFull(periodStart)} – ${fmtDateFull(periodEnd)}`;
+      pdfName     = showKW
+        ? `${t.docName} KW${kw} ${fmtDateFull(periodStart)}-${fmtDateFull(periodEnd)}`
+        : `${t.docName} ${fmtDateFull(periodStart)}-${fmtDateFull(periodEnd)}`;
+      emptyText   = t.noEntriesWeek;
+    } else {
+      const y = anchorDate.getFullYear(), m = anchorDate.getMonth();
+      periodStart = new Date(y, m, 1);
+      periodEnd   = new Date(y, m, daysInMonth(y, m));
+      isCurrent   = y === state.today.getFullYear() && m === state.today.getMonth();
+      title       = `${MN[m]} ${y}`;
+      kicker      = `${t.month} ${y}`;
+      printLabel  = `${t.month} ${MN[m]} ${y}`;
+      pdfName     = `${t.docName} ${MN[m]} ${y}`;
+      emptyText   = t.noEntriesMonth;
+    }
+
+    // Print → set the document title so the saved PDF gets a sensible filename, then
+    // restore it. window.print() is called synchronously inside the click handler so it
+    // keeps the user-gesture context (avoids Safari's extra "möchten Sie drucken?" prompt).
+    function printPdf() {
+      const prevTitle = document.title;
+      document.title = pdfName;
+      const restore = () => {
+        document.title = prevTitle;
+        window.removeEventListener('afterprint', restore);
+      };
+      window.addEventListener('afterprint', restore);
+      window.print();
+    }
+
+    const pEntries  = getEntriesInRange(state.entries, periodStart, periodEnd);
+    const carryIn   = carryInBeforeDate(state.entries, periodStart, settings.anfangssaldo);
+    const showCarry = hasContentBefore(state.entries, periodStart, settings.anfangssaldo);
+    const running   = computeRunning(pEntries, carryIn);
+    const pEin      = pEntries.reduce((s,e) => e.type==='einnahme' ? s+e.amount : s, 0);
+    const pAus      = pEntries.reduce((s,e) => e.type==='ausgabe'  ? s+e.amount : s, 0);
+    const carryEin  = carryIn > 0 ? carryIn : 0;
+    const carryAus  = carryIn < 0 ? -carryIn : 0;
+    const totalEin  = pEin + carryEin;   // Kassenbuch: Einnahmen inkl. Saldovortrag
+    const totalAus  = pAus + carryAus;
+    const endSaldo  = running.length > 0 ? running[running.length-1].saldo : carryIn;
+    const hasContent = pEntries.length > 0 || showCarry;
+
+    return (
+      <div className="screen screen-enter">
+        {/* Print-only header */}
+        <div className="print-header" style={{ marginBottom:16 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:16, marginBottom:12 }}>
+            <div style={{ flex:1, minWidth:0, overflowWrap:'anywhere', wordBreak:'break-word' }}>
+              <div style={{ fontSize:16, fontWeight:700, letterSpacing:'-0.01em' }}>{settings.firma}</div>
+              <div style={{ fontSize:12, color:'#555', marginTop:2 }}>{settings.adresse}</div>
+              <div style={{ fontSize:12, color:'#555' }}>{settings.telefon}{settings.telefon && settings.email ? ' · ' : ''}{settings.email}</div>
+            </div>
+            <div style={{ textAlign:'right', flexShrink:0 }}>
+              <div style={{ fontSize:15, fontWeight:600 }}>{t.docName} {periodStart.getFullYear()}</div>
+            </div>
+          </div>
+          <div style={{ borderTop:'1.5px solid #000', paddingTop:8, fontSize:12, fontWeight:600 }}>
+            {printLabel}
+          </div>
+        </div>
+
+        {/* Back to history (only when navigated here from Verlauf) */}
+        {onBack && (
+          <div className="no-print" style={{ padding:'calc(env(safe-area-inset-top, 20px) + 10px) 14px 0' }}>
+            <button onClick={onBack} style={{
+              appearance:'none', border:'none', background:'transparent', cursor:'pointer',
+              display:'inline-flex', alignItems:'center', gap:5, padding:'4px 2px',
+              fontFamily:'inherit', fontSize:14, fontWeight:500, letterSpacing:'-0.01em', color:'var(--accent)',
+            }}>
+              <Chevron dir="left" size={15} color="var(--accent)"/> {t.backToHistory}
+            </button>
+          </div>
+        )}
+
+        {/* Top bar — navigation only, so the full date fits */}
+        <div className="topbar no-print" style={onBack ? { paddingTop:6 } : undefined}>
+          <div className="topbar-side">
+            <button className="btn btn-icon" onClick={() => onNavigate(-1)}><Chevron dir="left" size={20}/></button>
+          </div>
+          <div className="topbar-center" style={{ overflow:'hidden' }}>
+            <div className="kicker" style={{ textAlign:'center', marginBottom:2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', color: isCurrent ? 'var(--accent)' : 'var(--ink-3)' }}>
+              {kicker}
+            </div>
+            <div onClick={onJumpDate} title={t.pickDate}
+              style={{ fontSize:14, fontWeight:500, letterSpacing:'-0.02em', color:'var(--ink)', textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', cursor:'pointer' }}>
+              {title}
+            </div>
+          </div>
+          <div className="topbar-side topbar-side-right">
+            <button className="btn btn-icon" onClick={() => onNavigate(1)}><Chevron dir="right" size={20}/></button>
+          </div>
+        </div>
+
+        {/* Action row: view toggle + print + add */}
+        <div className="no-print" style={{ display:'flex', alignItems:'center', gap:8, padding:'2px 16px 10px' }}>
+          <div style={{ display:'inline-flex', background:'var(--line)', borderRadius:9, padding:2 }}>
+            {[['woche',t.week],['monat',t.month]].map(([v,l]) => (
+              <button key={v} onClick={() => onSetView(v)} style={{
+                appearance:'none', border:'none', cursor:'pointer',
+                padding:'6px 16px', borderRadius:7,
+                background: viewMode===v ? 'var(--surface)' : 'transparent',
+                color: viewMode===v ? 'var(--ink)' : 'var(--ink-3)',
+                fontFamily:'inherit', fontSize:13, fontWeight:500, letterSpacing:'-0.01em',
+                boxShadow: viewMode===v ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                transition:'all 0.2s var(--tap)',
+              }}>{l}</button>
+            ))}
+          </div>
+          <div style={{ flex:1 }}/>
+          <button className="btn btn-icon btn-soft" onClick={printPdf} title={t.print}
+            style={{ width:38, height:38 }}>
+            <PrintIcon size={18}/>
+          </button>
+          <button className="btn btn-icon" onClick={() => onOpenEntry(null)} title={t.addEntry}
+            style={{ width:38, height:38, background:'var(--ink)', color:'var(--bg)' }}>
+            <PlusIcon size={18} color="var(--bg)"/>
+          </button>
+        </div>
+
+        <div className="scroll" style={{ padding:'0 16px 80px' }}>
+          {!hasContent ? (
+            <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--ink-3)' }}>
+              <div style={{ fontSize:32, marginBottom:12 }}>📒</div>
+              <div style={{ fontSize:14, fontWeight:500 }}>{emptyText}</div>
+              <div style={{ fontSize:13, marginTop:4 }}>{t.tapToAdd}</div>
+            </div>
+          ) : (
+            <div className="card" style={{ marginTop:6 }}>
+              <table className="kasse-table">
+                <thead>
+                  <tr>
+                    <th style={{ width:60 }}>{t.colDate}</th>
+                    <th style={{ width:'auto' }}>{t.colText}</th>
+                    <th style={{ width:64 }}>{t.colIncome}</th>
+                    <th style={{ width:62 }}>{t.colExpense}</th>
+                    <th style={{ width:66 }}>{t.colBalance}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {showCarry && (
+                    <tr>
+                      <td className="tnum" style={{ color:'var(--ink-4)', fontSize:11 }}>{fmtDayWd(periodStart, lang)}</td>
+                      <td style={{ color:'var(--ink-2)', fontStyle:'italic' }}>
+                        {t.carryForward}
+                      </td>
+                      <td className="tnum" style={{ color:'var(--ink-3)', fontSize:13 }}>{carryEin > 0 ? fmtAmount(carryEin) : ''}</td>
+                      <td className="tnum" style={{ color:'var(--ink-3)', fontSize:13 }}>{carryAus > 0 ? fmtAmount(carryAus) : ''}</td>
+                      <td className="tnum" style={{ fontSize:13, fontWeight:500, color: carryIn < 0 ? 'var(--negative)' : 'var(--ink-2)' }}>
+                        {fmtSaldo(carryIn)}
+                      </td>
+                    </tr>
+                  )}
+                  {running.map(e => {
+                    const dt = parseKey(e.date);
+                    return (
+                      <tr key={e.id} className="row-tap" onClick={() => onOpenEntry(e)}>
+                        <td className="tnum" style={{ color:'var(--ink-3)', fontSize:11 }}>{fmtDayWd(dt, lang)}</td>
+                        <td>
+                          {e.desc}
+                        </td>
+                        <td className="tnum" style={{ color: e.type==='einnahme' ? 'var(--positive)' : 'transparent', fontSize:13 }}>
+                          {e.type==='einnahme' ? fmtAmount(e.amount) : ''}
+                        </td>
+                        <td className="tnum" style={{ color: e.type==='ausgabe' ? 'var(--negative)' : 'transparent', fontSize:13 }}>
+                          {e.type==='ausgabe' ? fmtAmount(e.amount) : ''}
+                        </td>
+                        <td className="tnum" style={{ fontSize:13, fontWeight:500, color: e.saldo < 0 ? 'var(--negative)' : 'var(--ink)' }}>
+                          {fmtSaldo(e.saldo)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={2} style={{ color:'var(--ink-3)', fontSize:12, fontWeight:400 }}>{t.total}</td>
+                    <td className="tnum" style={{ color:'var(--positive)', fontWeight:600, fontSize:13 }}>{fmtAmount(totalEin)}</td>
+                    <td className="tnum" style={{ color:'var(--negative)', fontWeight:600, fontSize:13 }}>{fmtAmount(totalAus)}</td>
+                    <td className="tnum" style={{ fontSize:13, color: endSaldo < 0 ? 'var(--negative)' : 'var(--ink)', fontWeight:600 }}>{fmtSaldo(endSaldo)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════
+     VERLAUF SCREEN
+  ═══════════════════════════════════════════ */
+  function VerlaufScreen({ state, onPickWeek }) {
+    const weeks = allWeekStarts(state.entries);
+    const showKW = state.settings.showKW !== false;
+    const t = tr(state.settings.lang);
+
+    // Also include current week even if empty
+    const todayWS = getWeekStart(state.today);
+    const todayWSKey = dateKey(todayWS.getFullYear(), todayWS.getMonth(), todayWS.getDate());
+    const allKeys = new Set(weeks.map(d => dateKey(d.getFullYear(), d.getMonth(), d.getDate())));
+    const displayWeeks = allKeys.has(todayWSKey) ? weeks : [todayWS, ...weeks];
+
+    return (
+      <div className="screen screen-enter">
+        <div className="topbar">
+          <div>
+            <div className="kicker fade-up" style={{ marginBottom:4 }}>{t.archive}</div>
+            <div className="label-lg fade-up" style={{ animationDelay:'0.04s' }}>{t.history}</div>
+          </div>
+        </div>
+        <div className="scroll" style={{ padding:'0 16px 24px' }}>
+          {displayWeeks.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'60px 20px', color:'var(--ink-3)', fontSize:14 }}>
+              {t.noEntriesYet}
+            </div>
+          ) : (
+            <div className="card fade-up" style={{ animationDelay:'0.08s' }}>
+              {displayWeeks.map((ws, i) => {
+                const wEntries = getEntriesInRange(state.entries, ws, weekEndDate(ws));
+                const carryIn  = carryInBeforeDate(state.entries, ws, state.settings.anfangssaldo);
+                const running  = computeRunning(wEntries, carryIn);
+                const totalEin = wEntries.reduce((s,e) => e.type==='einnahme' ? s+e.amount : s, 0);
+                const totalAus = wEntries.reduce((s,e) => e.type==='ausgabe'  ? s+e.amount : s, 0);
+                const endSaldo = running.length > 0 ? running[running.length-1].saldo : carryIn;
+                const friday   = weekEndDate(ws);
+                const kw       = weekKW(ws);
+                const wsKey    = dateKey(ws.getFullYear(), ws.getMonth(), ws.getDate());
+                const todayKey2 = dateKey(todayWS.getFullYear(), todayWS.getMonth(), todayWS.getDate());
+                const isCurrent = wsKey === todayKey2;
+                return (
+                  <div key={wsKey} onClick={() => onPickWeek(ws)}
+                    style={{
+                      display:'flex', alignItems:'center', gap:12,
+                      padding:'14px 16px',
+                      borderBottom: i < displayWeeks.length-1 ? '1px solid var(--line)' : 'none',
+                      cursor:'pointer', transition:'background 0.12s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background='var(--line)'}
+                    onMouseLeave={e => e.currentTarget.style.background=''}
+                  >
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13.5, fontWeight:500, letterSpacing:'-0.01em', color:'var(--ink)', display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                        <span style={{ whiteSpace:'nowrap' }}>{fmtDateFull(ws)} – {fmtDateFull(friday)}</span>
+                        {isCurrent && <span style={{ fontSize:10, fontWeight:500, color:'var(--accent)', background:'var(--accent-soft)', padding:'2px 7px', borderRadius:99 }}>{t.current}</span>}
+                      </div>
+                      <div className="tnum" style={{ fontSize:11, color:'var(--ink-3)', marginTop:3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                        {showKW ? `${t.calWeek} ${kw} · ` : ''}{wEntries.length} {wEntries.length === 1 ? t.entryOne : t.entryMany}
+                      </div>
+                    </div>
+                    <div className="tnum" style={{ fontSize:14, fontWeight:600, color: endSaldo < 0 ? 'var(--negative)' : 'var(--ink)', flexShrink:0 }}>
+                      {fmtSaldo(endSaldo)}
+                    </div>
+                    <Chevron color="var(--ink-3)"/>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════
+     SETTINGS SCREEN
+  ═══════════════════════════════════════════ */
+  function SettingsScreen({ state, setState, onLogout }) {
+    const s = state.settings;
+    const t = tr(s.lang);
+    const setS = (key, val) => setState(st => ({ ...st, settings: { ...st.settings, [key]: val } }));
+
+    function exportJson() {
+      const data = JSON.stringify({ entries: state.entries, settings: state.settings }, null, 2);
+      const a = Object.assign(document.createElement('a'), {
+        href: URL.createObjectURL(new Blob([data], { type:'application/json' })),
+        download: `kassenbuch-${new Date().toISOString().slice(0,10)}.json`,
+      });
+      a.click(); URL.revokeObjectURL(a.href);
+    }
+
+    function importJson() {
+      const inp = Object.assign(document.createElement('input'), { type:'file', accept:'.json,application/json' });
+      inp.onchange = () => {
+        const file = inp.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          try {
+            const data = JSON.parse(ev.target.result);
+            if (!confirm(t.confirmImport)) return;
+            setState(st => ({
+              ...st,
+              entries:  data.entries  || st.entries,
+              settings: data.settings ? { ...DEFAULT_SETTINGS, ...data.settings } : st.settings,
+            }));
+          } catch { alert(t.importError); }
+        };
+        reader.readAsText(file);
+      };
+      inp.click();
+    }
+
+    function resetData() {
+      if (confirm(t.confirmReset)) setState(st => ({ ...st, entries: {} }));
+    }
+
+    function NumSRow({ label, sub, settingsKey }) {
+      const [editing, setEditing] = useState(false);
+      const [val, setVal] = useState(String(s[settingsKey] ?? 0));
+      function commit() {
+        const n = parseFloat(val.replace(',', '.').replace(/[^0-9.\-]/g, ''));
+        setS(settingsKey, isNaN(n) ? 0 : Math.round(n * 100) / 100);
+        setEditing(false);
+      }
+      return (
+        <SRow label={label} sub={sub} right={
+          editing
+            ? <input autoFocus type="text" inputMode="decimal" value={val}
+                onChange={e => setVal(e.target.value.replace(/[^0-9.,\-]/g, ''))}
+                onBlur={commit}
+                onKeyDown={e => { if (e.key==='Enter') commit(); }}
+                style={{ border:'none', borderBottom:'1.5px solid var(--ink)', background:'transparent', outline:'none', fontSize:14, textAlign:'right', fontFamily:'inherit', color:'var(--ink)', width:110, fontVariantNumeric:'tabular-nums' }}
+              />
+            : <span className="tnum" onClick={() => { setVal(String(s[settingsKey] ?? 0)); setEditing(true); }}
+                style={{ fontSize:14, fontWeight:500, color:'var(--ink)', cursor:'text' }}>
+                {fmtSaldo(s[settingsKey] || 0)} <span style={{ color:'var(--ink-3)' }}>{s.currency}</span>
+              </span>
+        }/>
+      );
+    }
+
+    const CURRENCY_PRESETS = [
+      { id:'chf', label:'CHF', symbol:'SFr.' },
+      { id:'eur', label:'Euro', symbol:'€' },
+      { id:'usd', label:'Dollar', symbol:'$' },
+      { id:'custom', label:t.custom, symbol:null },
+    ];
+
+    function CurrencyRow() {
+      const preset = s.currencyPreset || 'chf';
+      const [customVal, setCustomVal] = useState(
+        preset === 'custom' ? (s.currency || '') : ''
+      );
+      function selectPreset(id) {
+        const p = CURRENCY_PRESETS.find(pp => pp.id === id);
+        setS('currencyPreset', id);
+        if (p.symbol) setS('currency', p.symbol);
+      }
+      function commitCustom() {
+        const v = customVal.trim();
+        if (v) setS('currency', v);
+      }
+      return (
+        <div style={{ padding:'13px 0', borderBottom:'1px solid var(--line)' }}>
+          <div className="srow-title" style={{ marginBottom:10, fontSize:14, fontWeight:500 }}>{t.currencyLabel}</div>
+          <div style={{ display:'flex', gap:7, flexWrap:'wrap' }}>
+            {CURRENCY_PRESETS.map(p => (
+              <button key={p.id} onClick={() => selectPreset(p.id)} style={{
+                padding:'6px 13px', borderRadius:999,
+                border:`1.5px solid ${preset===p.id ? 'var(--ink)' : 'var(--line-2)'}`,
+                background: preset===p.id ? 'var(--ink)' : 'var(--surface)',
+                color: preset===p.id ? 'var(--bg)' : 'var(--ink-2)',
+                fontFamily:'inherit', fontSize:13, fontWeight:500, cursor:'pointer',
+                transition:'all 0.15s var(--tap)',
+              }}>
+                {p.symbol ? `${p.label} (${p.symbol})` : p.label}
+              </button>
+            ))}
+          </div>
+          {preset === 'custom' && (
+            <div style={{ marginTop:10 }}>
+              <input type="text" placeholder={t.customCurrencyPlaceholder}
+                value={customVal}
+                onChange={e => setCustomVal(e.target.value)}
+                onBlur={commitCustom}
+                onKeyDown={e => { if (e.key==='Enter') commitCustom(); }}
+                style={{
+                  border:'none', borderBottom:'1.5px solid var(--ink)',
+                  background:'transparent', outline:'none',
+                  fontSize:14, fontFamily:'inherit', color:'var(--ink)', width:'100%',
+                }}
+              />
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const WEEKDAY_OPTIONS = [1,2,3,4,5,6,0]; // Mo … Sa, So
+    const WD_NAMES = WEEKDAY_FULL[s.lang] || WEEKDAY_FULL.de;
+
+    function WeekStartRow() {
+      return (
+        <SRow label={t.weekStart} sub={t.weekStartSub} right={
+          <select value={s.weekStartDay ?? 6}
+            onChange={e => setS('weekStartDay', Number(e.target.value))}
+            style={{
+              border:'none', background:'transparent',
+              fontSize:13, fontFamily:'inherit', color:'var(--ink-2)',
+              cursor:'pointer', outline:'none', textAlign:'right',
+            }}>
+            {WEEKDAY_OPTIONS.map(d => (
+              <option key={d} value={d}>{WD_NAMES[d]}</option>
+            ))}
+          </select>
+        }/>
+      );
+    }
+
+    const LANG_OPTIONS = ['de','en','it','fr'];
+    function LanguageRow() {
+      return (
+        <SRow label={t.language} right={
+          <select value={s.lang || 'de'}
+            onChange={e => setS('lang', e.target.value)}
+            style={{
+              border:'none', background:'transparent',
+              fontSize:13, fontFamily:'inherit', color:'var(--ink-2)',
+              cursor:'pointer', outline:'none', textAlign:'right',
+            }}>
+            {LANG_OPTIONS.map(l => (
+              <option key={l} value={l}>{LANG_NAMES[l]}</option>
+            ))}
+          </select>
+        }/>
+      );
+    }
+
+    function HeaderTypeRow() {
+      const ht = s.headerType || 'firma';
+      return (
+        <div style={{ padding:'13px 0', borderBottom:'1px solid var(--line)' }}>
+          <div className="srow-title" style={{ marginBottom:4, fontSize:14, fontWeight:500 }}>{t.headerKind}</div>
+          <div className="srow-sub" style={{ marginBottom:10 }}>{t.headerKindSub}</div>
+          <div style={{ display:'inline-flex', background:'var(--line)', borderRadius:9, padding:2 }}>
+            {[['firma',t.firma],['privat',t.privatperson]].map(([v,l]) => (
+              <button key={v} onClick={() => setS('headerType', v)} style={{
+                appearance:'none', border:'none', cursor:'pointer',
+                padding:'6px 16px', borderRadius:7,
+                background: ht===v ? 'var(--surface)' : 'transparent',
+                color: ht===v ? 'var(--ink)' : 'var(--ink-3)',
+                fontFamily:'inherit', fontSize:13, fontWeight:500, letterSpacing:'-0.01em',
+                boxShadow: ht===v ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                transition:'all 0.2s var(--tap)',
+              }}>{l}</button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function TextSRow({ label, settingsKey, placeholder }) {
+      const [editing, setEditing] = useState(false);
+      const [val, setVal] = useState(s[settingsKey]);
+      return (
+        <SRow label={label} right={
+          editing
+            ? <input autoFocus type="text" value={val}
+                onChange={e => setVal(e.target.value)}
+                onBlur={() => { setS(settingsKey, val); setEditing(false); }}
+                onKeyDown={e => { if (e.key==='Enter') { setS(settingsKey, val); setEditing(false); } }}
+                style={{ border:'none', borderBottom:'1.5px solid var(--ink)', background:'transparent', outline:'none', fontSize:13, textAlign:'right', fontFamily:'inherit', color:'var(--ink)', width:160 }}
+              />
+            : <span onClick={() => setEditing(true)} style={{ fontSize:13, color:'var(--ink-2)', cursor:'text', textAlign:'right', maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                {s[settingsKey] || <span style={{ color:'var(--ink-4)' }}>{placeholder}</span>}
+              </span>
+        }/>
+      );
+    }
+
+    return (
+      <div className="screen screen-enter">
+        <div className="topbar">
+          <div>
+            <div className="kicker fade-up" style={{ marginBottom:4 }}>{t.setup}</div>
+            <div className="label-lg fade-up" style={{ animationDelay:'0.04s' }}>{t.settings}</div>
+          </div>
+        </div>
+        <div className="scroll" style={{ padding:'0 20px 28px' }}>
+
+          <SettingsGroup label={t.grpBalance} delay={0}>
+            <NumSRow label={t.openingBalance} sub={t.openingBalanceSub} settingsKey="anfangssaldo"/>
+          </SettingsGroup>
+
+          <SettingsGroup label={t.grpDisplay} delay={0.03}>
+            <LanguageRow/>
+            <CurrencyRow/>
+            <WeekStartRow/>
+            <SRow label={t.showCalWeek} sub={t.showCalWeekSub} right={
+              <Toggle on={s.showKW !== false} onChange={v => setS('showKW', v)}/>
+            }/>
+          </SettingsGroup>
+
+          <SettingsGroup label={(s.headerType||'firma')==='privat' ? t.grpHeaderPrivat : t.grpHeaderFirma} delay={0.08}>
+            <HeaderTypeRow/>
+            <TextSRow label={(s.headerType||'firma')==='privat' ? t.name : t.companyName} settingsKey="firma" placeholder={t.name}/>
+            <TextSRow label={t.address} settingsKey="adresse" placeholder={t.address}/>
+            <TextSRow label={t.phone} settingsKey="telefon" placeholder={t.phone}/>
+            <TextSRow label={t.email} settingsKey="email" placeholder={t.email}/>
+          </SettingsGroup>
+
+          <SettingsGroup label={t.grpData} delay={0.11}>
+            <SRow label={t.exportBackup} sub={t.exportSub} onClick={exportJson} chevron/>
+            <SRow label={t.importBackup} sub={t.importSub} onClick={importJson} chevron/>
+            <SRow label={t.resetAll} danger onClick={resetData} chevron/>
+          </SettingsGroup>
+
+          <div className="fade-up" style={{ animationDelay:'0.14s', marginTop:22 }}>
+            <button className="btn btn-soft" onClick={onLogout}
+              style={{ width:'100%', color:'var(--ink-2)' }}>
+              {t.logout}
+            </button>
+          </div>
+
+          <div className="fade-up" style={{ animationDelay:'0.2s', textAlign:'center', marginTop:28, fontSize:11, color:'var(--ink-3)', lineHeight:1.7 }}>
+            {t.dataLocal}<br/>{t.docName} v1 · {new Date().getFullYear()}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════
+     APP ROOT
+  ═══════════════════════════════════════════ */
+  function App() {
+    const [authed, setAuthed] = useState(() => localStorage.getItem(LS_AUTH) === 'yes');
+    const [tab, setTab]       = useState('kasse');
+    const [sheet, setSheet]   = useState(null); // null | { entry: obj|null, defaultDate: str|null }
+    const [undoToast, setUndoToast] = useState(null);
+    const [anchorDate, setAnchorDate] = useState(() => new Date()); // any date inside the shown period
+    const [viewMode, setViewMode]     = useState('woche');          // 'woche' | 'monat'
+    const [returnToVerlauf, setReturnToVerlauf] = useState(false);  // show "back to history" in Kasse
+    const jumpRef = useRef(null);
+
+    const [state, setState] = useState(() => {
+      const settings = loadSettings();
+      WEEK_START_DAY = settings.weekStartDay ?? 6;
+      return {
+        today:    new Date(),
+        entries:  loadData(),
+        settings,
+      };
+    });
+
+    // Keep the week-start in sync synchronously (App renders before its children,
+    // so getWeekStart() always sees the current value — no one-render lag).
+    WEEK_START_DAY = state.settings.weekStartDay ?? 6;
+
+    const t = tr(state.settings.lang);
+    const TABS = [
+      { id:'kasse',         label:t.tabKasse,    icon: <TabKasseIcon />    },
+      { id:'verlauf',       label:t.tabVerlauf,  icon: <TabVerlaufIcon />  },
+      { id:'einstellungen', label:t.tabSettings, icon: <TabSettingsIcon /> },
+    ];
+
+    const prevEntriesRef = useRef(null);
+    const undoTimerRef   = useRef(null);
+
+    useEffect(() => { localStorage.setItem(LS_DATA,     JSON.stringify(state.entries));  }, [state.entries]);
+    useEffect(() => { localStorage.setItem(LS_SETTINGS, JSON.stringify(state.settings)); }, [state.settings]);
+    useEffect(() => { document.title = tr(state.settings.lang).docName; }, [state.settings.lang]);
+
+    useEffect(() => {
+      const check = () => setState(s => {
+        const now = new Date();
+        return now.toDateString() === s.today.toDateString() ? s : { ...s, today: now };
+      });
+      document.addEventListener('visibilitychange', check);
+      const id = setInterval(check, 60000);
+      return () => { document.removeEventListener('visibilitychange', check); clearInterval(id); };
+    }, []);
+
+    function showUndo(key, snapshot) {
+      prevEntriesRef.current = snapshot;
+      setUndoToast({ key });
+      clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = setTimeout(() => { setUndoToast(null); prevEntriesRef.current = null; }, 6000);
+    }
+
+    function doUndo() {
+      if (prevEntriesRef.current !== null) {
+        setState(s => ({ ...s, entries: prevEntriesRef.current }));
+        prevEntriesRef.current = null;
+      }
+      clearTimeout(undoTimerRef.current);
+      setUndoToast(null);
+    }
+
+    // onSave(entry, isEdit, deleteId?, deleteDate?)
+    function handleSaveEntry(entry, isEdit, deleteId = null, deleteDate = null) {
+      const snapshot = state.entries;
+      setState(s => {
+        const entries = {};
+        // Deep-copy existing
+        for (const k in s.entries) entries[k] = [...s.entries[k]];
+
+        if (deleteId && deleteDate) {
+          // Delete
+          if (entries[deleteDate]) {
+            entries[deleteDate] = entries[deleteDate].filter(e => e.id !== deleteId);
+            if (entries[deleteDate].length === 0) delete entries[deleteDate];
+          }
+          showUndo('undoDeleted', snapshot);
+        } else if (entry) {
+          const dk = entry.date;
+          if (isEdit) {
+            // Find old date key for this entry (may have changed)
+            for (const k in entries) {
+              const idx = entries[k].findIndex(e => e.id === entry.id);
+              if (idx !== -1) {
+                entries[k] = entries[k].filter(e => e.id !== entry.id);
+                if (entries[k].length === 0) delete entries[k];
+                break;
+              }
+            }
+            showUndo('undoSaved', snapshot);
+          } else {
+            showUndo('undoAdded', snapshot);
+          }
+          if (!entries[dk]) entries[dk] = [];
+          entries[dk] = [...entries[dk], { id:entry.id, desc:entry.desc, amount:entry.amount, type:entry.type, cat:entry.cat }];
+        }
+
+        return { ...s, entries };
+      });
+    }
+
+    function navigate(dir) {
+      setAnchorDate(d => {
+        const nd = new Date(d);
+        if (viewMode === 'woche') nd.setDate(nd.getDate() + dir * 7);
+        else                      nd.setMonth(nd.getMonth() + dir, 1);
+        return nd;
+      });
+    }
+
+    function openEntry(entry) {
+      // entry = null → new; entry = obj → edit
+      // Default date: today if inside the shown period, else the period start
+      let defaultDate;
+      const today = state.today;
+      if (viewMode === 'woche') {
+        const ws = getWeekStart(anchorDate), we = weekEndDate(ws);
+        const inPeriod = today >= ws && today <= we;
+        const base = inPeriod ? today : ws;
+        defaultDate = dateKey(base.getFullYear(), base.getMonth(), base.getDate());
+      } else {
+        const y = anchorDate.getFullYear(), m = anchorDate.getMonth();
+        const inPeriod = today.getFullYear() === y && today.getMonth() === m;
+        const base = inPeriod ? today : new Date(y, m, 1);
+        defaultDate = dateKey(base.getFullYear(), base.getMonth(), base.getDate());
+      }
+      setSheet({ entry, defaultDate });
+    }
+
+    function pickWeek(ws) {
+      setAnchorDate(ws);
+      setViewMode('woche');
+      setReturnToVerlauf(true);   // enable "back to history" in Kasse
+      setTab('kasse');
+    }
+
+    // Manual tab switch clears the "came from Verlauf" context
+    function selectTab(id) {
+      setReturnToVerlauf(false);
+      setTab(id);
+    }
+
+    function jumpToDate() {
+      const el = jumpRef.current;
+      if (!el) return;
+      el.value = dateKey(anchorDate.getFullYear(), anchorDate.getMonth(), anchorDate.getDate());
+      if (el.showPicker) el.showPicker(); else el.click();
+    }
+
+    if (!authed) {
+      return (
+        <div className="app">
+          <CoverScreen onAuth={() => setAuthed(true)} lang={state.settings.lang}/>
+        </div>
+      );
+    }
+
+    return (
+      <div className="app">
+        <div className="screen-wrap">
+          {tab === 'kasse' && (
+            <KasseScreen
+              key="kasse"
+              state={state}
+              anchorDate={anchorDate}
+              viewMode={viewMode}
+              onOpenEntry={openEntry}
+              onNavigate={navigate}
+              onSetView={setViewMode}
+              onJumpDate={jumpToDate}
+              onBack={returnToVerlauf ? () => { setReturnToVerlauf(false); setTab('verlauf'); } : null}
+            />
+          )}
+          {tab === 'verlauf' && (
+            <VerlaufScreen key="verlauf" state={state} onPickWeek={pickWeek}/>
+          )}
+          {tab === 'einstellungen' && (
+            <SettingsScreen key="einstellungen" state={state} setState={setState}
+              onLogout={() => { localStorage.removeItem(LS_AUTH); location.reload(); }}/>
+          )}
+        </div>
+
+        <TabBar key={state.settings.lang} tabs={TABS} active={tab} onChange={selectTab}/>
+
+        {sheet && (
+          <EntryEditor
+            state={state}
+            onSave={handleSaveEntry}
+            onClose={() => setSheet(null)}
+            editEntry={sheet.entry}
+            defaultDate={sheet.defaultDate}
+          />
+        )}
+
+        {undoToast && <UndoToast label={t[undoToast.key]} undoLabel={t.undo} onUndo={doUndo}/>}
+
+        {/* Hidden date input for jump-to-date (tap the period title) */}
+        <input ref={jumpRef} type="date" className="no-print"
+          onChange={e => { if (e.target.value) setAnchorDate(parseKey(e.target.value)); }}
+          style={{ position:'absolute', opacity:0, pointerEvents:'none', width:0, height:0, bottom:80, left:'50%' }}
+        />
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) { refreshing = true; window.location.reload(); }
+      });
+      navigator.serviceWorker.register('./sw.js');
+    }
+  </script>
+</body>
+</html>
