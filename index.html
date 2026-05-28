@@ -474,7 +474,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       date:'Datum', description:'Beschreibung', amount:'Betrag', tapToConfirm:'Antippen zum Bestätigen',
       income:'Einnahme', expense:'Ausgabe', descPlaceholder:'z.B. Rg.nr. 26.24, Landi …', deleteEntry:'Eintrag löschen',
       archive:'Archiv', history:'Verlauf', noEntriesYet:'Noch keine Einträge', current:'Aktuell',
-      entryOne:'Eintrag', entryMany:'Einträge', backToHistory:'Zurück zum Verlauf',
+      entryOne:'Eintrag', entryMany:'Einträge', backToHistory:'Zurück zum Verlauf', openWeek:'Woche öffnen',
       setup:'Setup', settings:'Einstellungen',
       grpBalance:'Saldo', openingBalance:'Anfangssaldo', openingBalanceSub:'Startbetrag vor dem ersten Eintrag',
       grpDisplay:'Darstellung', currencyLabel:'Währung', weekStart:'Wochenbeginn', weekStartSub:'Erster Tag der Woche',
@@ -504,7 +504,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       date:'Date', description:'Description', amount:'Amount', tapToConfirm:'Tap to confirm',
       income:'Income', expense:'Expense', descPlaceholder:'e.g. Inv. 26.24, Landi …', deleteEntry:'Delete entry',
       archive:'Archive', history:'History', noEntriesYet:'No entries yet', current:'Current',
-      entryOne:'entry', entryMany:'entries', backToHistory:'Back to history',
+      entryOne:'entry', entryMany:'entries', backToHistory:'Back to history', openWeek:'Open week',
       setup:'Setup', settings:'Settings',
       grpBalance:'Balance', openingBalance:'Opening balance', openingBalanceSub:'Starting amount before the first entry',
       grpDisplay:'Display', currencyLabel:'Currency', weekStart:'Week start', weekStartSub:'First day of the week',
@@ -534,7 +534,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       date:'Data', description:'Descrizione', amount:'Importo', tapToConfirm:'Tocca per confermare',
       income:'Entrata', expense:'Uscita', descPlaceholder:'es. Fatt. 26.24, Landi …', deleteEntry:'Elimina voce',
       archive:'Archivio', history:'Storico', noEntriesYet:'Ancora nessun movimento', current:'Attuale',
-      entryOne:'voce', entryMany:'voci', backToHistory:'Torna allo storico',
+      entryOne:'voce', entryMany:'voci', backToHistory:'Torna allo storico', openWeek:'Apri settimana',
       setup:'Setup', settings:'Impostazioni',
       grpBalance:'Saldo', openingBalance:'Saldo iniziale', openingBalanceSub:'Importo iniziale prima della prima voce',
       grpDisplay:'Visualizzazione', currencyLabel:'Valuta', weekStart:'Inizio settimana', weekStartSub:'Primo giorno della settimana',
@@ -564,7 +564,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       date:'Date', description:'Description', amount:'Montant', tapToConfirm:'Touchez pour confirmer',
       income:'Recette', expense:'Dépense', descPlaceholder:'p.ex. Fact. 26.24, Landi …', deleteEntry:'Supprimer l’entrée',
       archive:'Archive', history:'Historique', noEntriesYet:'Aucune entrée', current:'Actuel',
-      entryOne:'entrée', entryMany:'entrées', backToHistory:'Retour à l’historique',
+      entryOne:'entrée', entryMany:'entrées', backToHistory:'Retour à l’historique', openWeek:'Ouvrir la semaine',
       setup:'Configuration', settings:'Réglages',
       grpBalance:'Solde', openingBalance:'Solde initial', openingBalanceSub:'Montant de départ avant la première entrée',
       grpDisplay:'Affichage', currencyLabel:'Devise', weekStart:'Début de semaine', weekStartSub:'Premier jour de la semaine',
@@ -1030,11 +1030,13 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
                 type="date" value={date}
                 onChange={e => setDate(e.target.value)}
                 style={{
-                  width:'100%', background:'var(--surface)',
+                  display:'block', width:'100%', boxSizing:'border-box',
+                  WebkitAppearance:'none', appearance:'none',
+                  background:'var(--surface)',
                   border:'1px solid var(--line-2)',
                   borderRadius:8, padding:'10px 12px',
                   fontSize:15, fontFamily:'inherit', color:'var(--ink)',
-                  outline:'none',
+                  textAlign:'left', outline:'none',
                 }}
               />
             </div>
@@ -1224,7 +1226,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
 
         {/* Back to history (only when navigated here from Verlauf) */}
         {onBack && (
-          <div className="no-print" style={{ padding:'calc(env(safe-area-inset-top, 20px) + 10px) 14px 0' }}>
+          <div className="no-print" style={{ padding:'calc(env(safe-area-inset-top, 20px) + 16px) 14px 0' }}>
             <button onClick={onBack} style={{
               appearance:'none', border:'none', background:'transparent', cursor:'pointer',
               display:'inline-flex', alignItems:'center', gap:5, padding:'4px 2px',
@@ -1236,7 +1238,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
         )}
 
         {/* Top bar — navigation only, so the full date fits */}
-        <div className="topbar no-print" style={onBack ? { paddingTop:6 } : undefined}>
+        <div className="topbar no-print" style={onBack ? { paddingTop:14 } : undefined}>
           <div className="topbar-side">
             <button className="btn btn-icon" onClick={() => onNavigate(-1)}><Chevron dir="left" size={20}/></button>
           </div>
@@ -1295,7 +1297,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
                 <div className="kasse-card kc-carry">
                   <div className="kc-top">
                     <span className="kc-date">{fmtDayWd(periodStart, lang)}</span>
-                    <span className="kc-desc" style={{ fontStyle:'italic', color:'var(--ink-2)' }}>{t.carryForward}</span>
+                    <span className="kc-desc" style={{ fontStyle:'italic', fontWeight:700, color:'var(--ink-2)' }}>{t.carryForward}</span>
                   </div>
                   <div className="kc-bottom">
                     <span/>
@@ -1353,7 +1355,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
                   {showCarry && (
                     <tr>
                       <td className="tnum" style={{ color:'var(--ink-4)', fontSize:11 }}>{fmtDayWd(periodStart, lang)}</td>
-                      <td style={{ color:'var(--ink-2)', fontStyle:'italic' }}>
+                      <td style={{ color:'var(--ink-2)', fontStyle:'italic', fontWeight:700 }}>
                         {t.carryForward}
                       </td>
                       <td className="tnum" style={{ color:'var(--ink-3)', fontSize:numFontSize(carryEin > 0 ? fmtAmount(carryEin) : '') }}>{carryEin > 0 ? fmtAmount(carryEin) : ''}</td>
@@ -1408,10 +1410,12 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
   /* ═══════════════════════════════════════════
      VERLAUF SCREEN
   ═══════════════════════════════════════════ */
-  function VerlaufScreen({ state, onPickWeek }) {
+  function VerlaufScreen({ state, onPickWeek, onDeleteEntry }) {
     const weeks = allWeekStarts(state.entries);
     const showKW = state.settings.showKW !== false;
-    const t = tr(state.settings.lang);
+    const lang = state.settings.lang || 'de';
+    const t = tr(lang);
+    const [openKey, setOpenKey] = useState(null);
 
     // Also include current week even if empty
     const todayWS = getWeekStart(state.today);
@@ -1446,30 +1450,66 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
                 const wsKey    = dateKey(ws.getFullYear(), ws.getMonth(), ws.getDate());
                 const todayKey2 = dateKey(todayWS.getFullYear(), todayWS.getMonth(), todayWS.getDate());
                 const isCurrent = wsKey === todayKey2;
+                const isOpen = openKey === wsKey;
                 return (
-                  <div key={wsKey} onClick={() => onPickWeek(ws)}
-                    style={{
-                      display:'flex', alignItems:'center', gap:12,
-                      padding:'14px 16px',
-                      borderBottom: i < displayWeeks.length-1 ? '1px solid var(--line)' : 'none',
-                      cursor:'pointer', transition:'background 0.12s',
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background='var(--line)'}
-                    onMouseLeave={e => e.currentTarget.style.background=''}
-                  >
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13.5, fontWeight:500, letterSpacing:'-0.01em', color:'var(--ink)', display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
-                        <span style={{ whiteSpace:'nowrap' }}>{fmtDateFull(ws)} – {fmtDateFull(friday)}</span>
-                        {isCurrent && <span style={{ fontSize:10, fontWeight:500, color:'var(--accent)', background:'var(--accent-soft)', padding:'2px 7px', borderRadius:99 }}>{t.current}</span>}
+                  <div key={wsKey} style={{ borderBottom: i < displayWeeks.length-1 ? '1px solid var(--line)' : 'none' }}>
+                    {/* Header — tap to expand/collapse */}
+                    <div onClick={() => setOpenKey(isOpen ? null : wsKey)}
+                      style={{
+                        display:'flex', alignItems:'center', gap:12,
+                        padding:'14px 16px', cursor:'pointer', transition:'background 0.12s',
+                        background: isOpen ? 'var(--line)' : '',
+                      }}
+                    >
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:13.5, fontWeight:500, letterSpacing:'-0.01em', color:'var(--ink)', display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                          <span style={{ whiteSpace:'nowrap' }}>{fmtDateFull(ws)} – {fmtDateFull(friday)}</span>
+                          {isCurrent && <span style={{ fontSize:10, fontWeight:500, color:'var(--accent)', background:'var(--accent-soft)', padding:'2px 7px', borderRadius:99 }}>{t.current}</span>}
+                        </div>
+                        <div className="tnum" style={{ fontSize:11, color:'var(--ink-3)', marginTop:3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                          {showKW ? `${t.calWeek} ${kw} · ` : ''}{wEntries.length} {wEntries.length === 1 ? t.entryOne : t.entryMany}
+                        </div>
                       </div>
-                      <div className="tnum" style={{ fontSize:11, color:'var(--ink-3)', marginTop:3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                        {showKW ? `${t.calWeek} ${kw} · ` : ''}{wEntries.length} {wEntries.length === 1 ? t.entryOne : t.entryMany}
+                      <div className="tnum" style={{ fontSize:14, fontWeight:600, color: endSaldo < 0 ? 'var(--negative)' : 'var(--ink)', flexShrink:0 }}>
+                        {fmtSaldo(endSaldo)}
                       </div>
+                      <span style={{ display:'inline-flex', transition:'transform 0.2s var(--tap)', transform: isOpen ? 'rotate(90deg)' : 'none', flexShrink:0 }}>
+                        <Chevron color="var(--ink-3)"/>
+                      </span>
                     </div>
-                    <div className="tnum" style={{ fontSize:14, fontWeight:600, color: endSaldo < 0 ? 'var(--negative)' : 'var(--ink)', flexShrink:0 }}>
-                      {fmtSaldo(endSaldo)}
-                    </div>
-                    <Chevron color="var(--ink-3)"/>
+
+                    {/* Expanded — entries with delete (X), plus open-week */}
+                    {isOpen && (
+                      <div style={{ padding:'2px 16px 12px' }}>
+                        {running.length === 0 ? (
+                          <div style={{ fontSize:12.5, color:'var(--ink-3)', padding:'8px 0 12px' }}>{t.noEntriesWeek}</div>
+                        ) : running.map(e => {
+                          const dt = parseKey(e.date);
+                          const isEin = e.type === 'einnahme';
+                          return (
+                            <div key={e.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 0', borderBottom:'1px solid var(--line)' }}>
+                              <span className="tnum" style={{ fontSize:11, color:'var(--ink-3)', width:52, flexShrink:0 }}>{fmtDayWd(dt, lang)}</span>
+                              <span style={{ flex:1, minWidth:0, fontSize:13, color:'var(--ink)', overflowWrap:'break-word' }}>{e.desc}</span>
+                              <span className="tnum" style={{ fontSize:13, fontWeight:500, whiteSpace:'nowrap', color: isEin ? 'var(--positive)' : 'var(--negative)' }}>
+                                {isEin ? '+' : '−'} {fmtAmount(e.amount)}
+                              </span>
+                              <button onClick={() => onDeleteEntry(e.id, e.date)} title={t.deleteEntry}
+                                style={{
+                                  appearance:'none', border:'none', cursor:'pointer', flexShrink:0,
+                                  width:28, height:28, borderRadius:99, display:'inline-flex',
+                                  alignItems:'center', justifyContent:'center',
+                                  background:'var(--accent-soft)', color:'var(--negative)',
+                                  fontSize:18, lineHeight:1, fontWeight:600, padding:0,
+                                }}>×</button>
+                            </div>
+                          );
+                        })}
+                        <button onClick={() => onPickWeek(ws)} className="btn btn-soft"
+                          style={{ marginTop:12, width:'100%', fontSize:13 }}>
+                          {t.openWeek}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1917,7 +1957,8 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
             />
           )}
           {tab === 'verlauf' && (
-            <VerlaufScreen key="verlauf" state={state} onPickWeek={pickWeek}/>
+            <VerlaufScreen key="verlauf" state={state} onPickWeek={pickWeek}
+              onDeleteEntry={(id, date) => handleSaveEntry(null, true, id, date)}/>
           )}
           {tab === 'einstellungen' && (
             <SettingsScreen key="einstellungen" state={state} setState={setState}
