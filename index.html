@@ -231,14 +231,14 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
 }
 .kasse-table th {
   font-size: 10px; font-weight: 600; letter-spacing: -0.01em; text-transform: none;
-  color: var(--ink-3); text-align: right; padding: 9px 7px 7px;
+  color: var(--ink-3); text-align: right; padding: 9px 4px 7px;
   border-bottom: 1px solid var(--line-2);
   white-space: nowrap;
 }
 .kasse-table th:first-child,
 .kasse-table th:nth-child(2) { text-align: left; }
 .kasse-table td {
-  padding: 10px 7px;
+  padding: 10px 4px;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
   text-align: right;
@@ -251,9 +251,12 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
 /* Description: never truncate — wrap to as many lines as needed */
 .kasse-table td:nth-child(2) {
   text-align: left; color: var(--ink);
-  white-space: normal; overflow-wrap: anywhere; word-break: break-word;
+  white-space: normal; overflow-wrap: break-word; word-break: normal; hyphens: auto;
   line-height: 1.25;
 }
+/* Numeric cells stay on one line + right-aligned, even the Total row where
+   colSpan shifts the Einnahmen cell onto nth-child(2) (description) styling. */
+.kasse-table td.tnum:not(:first-child) { white-space: nowrap; text-align: right; }
 .kasse-table tr:last-child td { border-bottom: none; }
 .kasse-table tr.row-tap td { cursor: pointer; transition: background 0.12s; }
 .kasse-table tr.row-tap:active td { background: var(--line); }
@@ -346,6 +349,13 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
   .card { border: none !important; box-shadow: none !important; background: #fff !important; }
   .kasse-table { font-size: 12px; }
   .kasse-table th, .kasse-table td { padding: 7px 6px; }
+  /* A4 has room — wide numeric columns so even millions print in full */
+  .kasse-table th:nth-child(1), .kasse-table td:nth-child(1) { width: 70px; }
+  .kasse-table th:nth-child(3), .kasse-table td:nth-child(3) { width: 90px; }
+  .kasse-table th:nth-child(4), .kasse-table td:nth-child(4) { width: 90px; }
+  .kasse-table th:nth-child(5), .kasse-table td:nth-child(5) { width: 95px; }
+  /* Reset adaptive on-screen shrinking — uniform readable size on paper */
+  .kasse-table td.tnum { font-size: 12px !important; }
   /* Show full descriptions on paper */
   .kasse-table td:nth-child(2), .kasse-table th:nth-child(2) {
     white-space: normal; overflow: visible; text-overflow: clip;
@@ -625,6 +635,16 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
   function fmtSaldo(n) {
     const sign = n < 0 ? '−' : '';
     return sign + Math.abs(n).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // Shrink the on-screen font for long amounts so they fit the narrow numeric
+  // columns instead of clipping. Print CSS resets this to a uniform size.
+  function numFontSize(str) {
+    const len = (str || '').length;
+    if (len >= 12) return 9;     // 1'234'567.89
+    if (len >= 10) return 10.5;  // 123'456.78
+    if (len >= 9)  return 12;    // 12'345.67
+    return 13;
   }
 
   function uid() {
@@ -1211,11 +1231,11 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
               <table className="kasse-table">
                 <thead>
                   <tr>
-                    <th style={{ width:60 }}>{t.colDate}</th>
+                    <th style={{ width:54 }}>{t.colDate}</th>
                     <th style={{ width:'auto' }}>{t.colText}</th>
-                    <th style={{ width:64 }}>{t.colIncome}</th>
-                    <th style={{ width:62 }}>{t.colExpense}</th>
-                    <th style={{ width:66 }}>{t.colBalance}</th>
+                    <th style={{ width:62 }}>{t.colIncome}</th>
+                    <th style={{ width:60 }}>{t.colExpense}</th>
+                    <th style={{ width:74 }}>{t.colBalance}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1225,9 +1245,9 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
                       <td style={{ color:'var(--ink-2)', fontStyle:'italic' }}>
                         {t.carryForward}
                       </td>
-                      <td className="tnum" style={{ color:'var(--ink-3)', fontSize:13 }}>{carryEin > 0 ? fmtAmount(carryEin) : ''}</td>
-                      <td className="tnum" style={{ color:'var(--ink-3)', fontSize:13 }}>{carryAus > 0 ? fmtAmount(carryAus) : ''}</td>
-                      <td className="tnum" style={{ fontSize:13, fontWeight:500, color: carryIn < 0 ? 'var(--negative)' : 'var(--ink-2)' }}>
+                      <td className="tnum" style={{ color:'var(--ink-3)', fontSize:numFontSize(carryEin > 0 ? fmtAmount(carryEin) : '') }}>{carryEin > 0 ? fmtAmount(carryEin) : ''}</td>
+                      <td className="tnum" style={{ color:'var(--ink-3)', fontSize:numFontSize(carryAus > 0 ? fmtAmount(carryAus) : '') }}>{carryAus > 0 ? fmtAmount(carryAus) : ''}</td>
+                      <td className="tnum" style={{ fontSize:numFontSize(fmtSaldo(carryIn)), fontWeight:500, color: carryIn < 0 ? 'var(--negative)' : 'var(--ink-2)' }}>
                         {fmtSaldo(carryIn)}
                       </td>
                     </tr>
@@ -1240,13 +1260,13 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
                         <td>
                           {e.desc}
                         </td>
-                        <td className="tnum" style={{ color: e.type==='einnahme' ? 'var(--positive)' : 'transparent', fontSize:13 }}>
+                        <td className="tnum" style={{ color: e.type==='einnahme' ? 'var(--positive)' : 'transparent', fontSize:numFontSize(e.type==='einnahme' ? fmtAmount(e.amount) : '') }}>
                           {e.type==='einnahme' ? fmtAmount(e.amount) : ''}
                         </td>
-                        <td className="tnum" style={{ color: e.type==='ausgabe' ? 'var(--negative)' : 'transparent', fontSize:13 }}>
+                        <td className="tnum" style={{ color: e.type==='ausgabe' ? 'var(--negative)' : 'transparent', fontSize:numFontSize(e.type==='ausgabe' ? fmtAmount(e.amount) : '') }}>
                           {e.type==='ausgabe' ? fmtAmount(e.amount) : ''}
                         </td>
-                        <td className="tnum" style={{ fontSize:13, fontWeight:500, color: e.saldo < 0 ? 'var(--negative)' : 'var(--ink)' }}>
+                        <td className="tnum" style={{ fontSize:numFontSize(fmtSaldo(e.saldo)), fontWeight:500, color: e.saldo < 0 ? 'var(--negative)' : 'var(--ink)' }}>
                           {fmtSaldo(e.saldo)}
                         </td>
                       </tr>
@@ -1256,9 +1276,9 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
                 <tfoot>
                   <tr>
                     <td colSpan={2} style={{ color:'var(--ink-3)', fontSize:12, fontWeight:400 }}>{t.total}</td>
-                    <td className="tnum" style={{ color:'var(--positive)', fontWeight:600, fontSize:13 }}>{fmtAmount(totalEin)}</td>
-                    <td className="tnum" style={{ color:'var(--negative)', fontWeight:600, fontSize:13 }}>{fmtAmount(totalAus)}</td>
-                    <td className="tnum" style={{ fontSize:13, color: endSaldo < 0 ? 'var(--negative)' : 'var(--ink)', fontWeight:600 }}>{fmtSaldo(endSaldo)}</td>
+                    <td className="tnum" style={{ color:'var(--positive)', fontWeight:600, fontSize:numFontSize(fmtAmount(totalEin)) }}>{fmtAmount(totalEin)}</td>
+                    <td className="tnum" style={{ color:'var(--negative)', fontWeight:600, fontSize:numFontSize(fmtAmount(totalAus)) }}>{fmtAmount(totalAus)}</td>
+                    <td className="tnum" style={{ fontSize:numFontSize(fmtSaldo(endSaldo)), color: endSaldo < 0 ? 'var(--negative)' : 'var(--ink)', fontWeight:600 }}>{fmtSaldo(endSaldo)}</td>
                   </tr>
                 </tfoot>
               </table>
