@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Kasse" />
@@ -18,11 +18,11 @@
   --surface:     #FFFFFF;
   --ink:         #0E0E0C;
   --ink-2:       #525048;
-  --ink-3:       #8C8A82;
+  --ink-3:       #6A6860;
   --ink-4:       #C2BFB6;
   --line:        #ECEAE3;
   --line-2:      #DCD9D0;
-  --accent:      #C25C2E;
+  --accent:      #AD4E20;
   --accent-soft: #F8EDE3;
   --positive:    #14532D;
   --negative:    #B23A1B;
@@ -35,6 +35,7 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
 html, body {
+  color-scheme: light;   /* native Controls (Datums-Picker etc.) immer hell rendern */
   background: var(--bg);
   font-family: var(--font);
   font-feature-settings: "ss01", "cv11";
@@ -267,7 +268,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
   padding-top: 12px; padding-bottom: 12px;
   color: var(--ink);
 }
-.kasse-table tfoot tr td:first-child { color: var(--ink-3); font-weight: 400; }
+.kasse-table tfoot tr td:first-child { color: var(--ink); font-weight: 700; }
 
 /* ─── Kasse cards (on-screen layout; table is print-only) ─ */
 .print-only { display: none; }
@@ -284,7 +285,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
 .kc-bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-top: 7px; padding-left: 27px; }
 .kc-amount { font-size: 14px; font-weight: 500; white-space: nowrap; }
 .kc-saldo { text-align: right; white-space: nowrap; }
-.kc-saldo-label { display: block; font-size: 9px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); }
+.kc-saldo-label { display: block; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); }
 .kc-saldo-val { font-size: 16px; font-weight: 700; }
 .kasse-total { padding: 12px 14px 14px; border-top: 1.5px solid var(--line-2); }
 .kt-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 3px 0; font-size: 13px; color: var(--ink-3); }
@@ -371,13 +372,19 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
   .topbar { display: none !important; }
   .print-header { display: block !important; }
   .print-only { display: block !important; }
-  .card { border: none !important; box-shadow: none !important; background: #fff !important; }
-  .kasse-table { font-size: 12px; }
-  .kasse-table th { font-size: 12px !important; font-weight: 700 !important; color: #000 !important; }
+  /* overflow:visible is essential — the base .card has overflow:hidden, which
+     would clip table rows that flow onto a second printed page. */
+  .card { border: none !important; box-shadow: none !important; background: #fff !important; overflow: visible !important; }
+  .kasse-table { font-size: 13px; }
+  .kasse-table th { font-size: 13px !important; font-weight: 700 !important; color: #000 !important; }
   .kasse-table th, .kasse-table td { padding: 7px 6px; }
   /* Column widths come from the inline th widths (72/auto/92/90/100) — A4 has
      room, so even 7-figure amounts print in full. */
-  .kasse-table td.tnum { font-size: 12px !important; }
+  .kasse-table td.tnum { font-size: 13px !important; }
+  /* table-row-group (not the default table-footer-group) so the Total row prints
+     ONCE at the end instead of repeating at the foot of every page. */
+  .kasse-table tfoot { display: table-row-group; }
+  .kasse-table tfoot tr { break-inside: avoid; }
   /* Show full descriptions on paper */
   .kasse-table td:nth-child(2), .kasse-table th:nth-child(2) {
     white-space: normal; overflow: visible; text-overflow: clip;
@@ -487,6 +494,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       income:'Einnahme', expense:'Ausgabe', descPlaceholder:'z.B. Rg.nr. 26.24, Landi …', deleteEntry:'Eintrag löschen',
       archive:'Archiv', history:'Verlauf', noEntriesYet:'Noch keine Einträge', current:'Aktuell',
       entryOne:'Eintrag', entryMany:'Einträge', backToHistory:'Zurück zum Verlauf', openWeek:'Woche öffnen', openMonth:'Monat öffnen',
+      prev:'Vorherige', next:'Nächste',
       setup:'Setup', settings:'Einstellungen',
       grpBalance:'Saldo', openingBalance:'Anfangssaldo', openingBalanceSub:'Startbetrag vor dem ersten Eintrag',
       grpDisplay:'Darstellung', currencyLabel:'Währung', weekStart:'Wochenbeginn', weekStartSub:'Erster Tag der Woche',
@@ -519,6 +527,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       income:'Income', expense:'Expense', descPlaceholder:'e.g. Inv. 26.24, Landi …', deleteEntry:'Delete entry',
       archive:'Archive', history:'History', noEntriesYet:'No entries yet', current:'Current',
       entryOne:'entry', entryMany:'entries', backToHistory:'Back to history', openWeek:'Open week', openMonth:'Open month',
+      prev:'Previous', next:'Next',
       setup:'Setup', settings:'Settings',
       grpBalance:'Balance', openingBalance:'Opening balance', openingBalanceSub:'Starting amount before the first entry',
       grpDisplay:'Display', currencyLabel:'Currency', weekStart:'Week start', weekStartSub:'First day of the week',
@@ -551,6 +560,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       income:'Entrata', expense:'Uscita', descPlaceholder:'es. Fatt. 26.24, Landi …', deleteEntry:'Elimina voce',
       archive:'Archivio', history:'Storico', noEntriesYet:'Ancora nessun movimento', current:'Attuale',
       entryOne:'voce', entryMany:'voci', backToHistory:'Torna allo storico', openWeek:'Apri settimana', openMonth:'Apri mese',
+      prev:'Precedente', next:'Successivo',
       setup:'Setup', settings:'Impostazioni',
       grpBalance:'Saldo', openingBalance:'Saldo iniziale', openingBalanceSub:'Importo iniziale prima della prima voce',
       grpDisplay:'Visualizzazione', currencyLabel:'Valuta', weekStart:'Inizio settimana', weekStartSub:'Primo giorno della settimana',
@@ -583,6 +593,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       income:'Recette', expense:'Dépense', descPlaceholder:'p.ex. Fact. 26.24, Landi …', deleteEntry:'Supprimer l’entrée',
       archive:'Archive', history:'Historique', noEntriesYet:'Aucune entrée', current:'Actuel',
       entryOne:'entrée', entryMany:'entrées', backToHistory:'Retour à l’historique', openWeek:'Ouvrir la semaine', openMonth:'Ouvrir le mois',
+      prev:'Précédent', next:'Suivant',
       setup:'Configuration', settings:'Réglages',
       grpBalance:'Solde', openingBalance:'Solde initial', openingBalanceSub:'Montant de départ avant la première entrée',
       grpDisplay:'Affichage', currencyLabel:'Devise', weekStart:'Début de semaine', weekStartSub:'Premier jour de la semaine',
@@ -1061,7 +1072,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
             <div style={{ marginBottom:18 }}>
               <div className="kicker" style={{ marginBottom:8 }}>{t.date}</div>
               <input
-                type="date" value={date}
+                type="date" value={date} aria-label={t.date}
                 onChange={e => setDate(e.target.value)}
                 onFocus={() => setDateFocused(true)}
                 onBlur={() => setDateFocused(false)}
@@ -1081,7 +1092,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
             <div style={{ marginBottom:18 }}>
               <div className="kicker" style={{ marginBottom:8 }}>{t.description}</div>
               <input
-                type="text" placeholder={t.descPlaceholder}
+                type="text" placeholder={t.descPlaceholder} aria-label={t.description}
                 value={desc} onChange={e => setDesc(e.target.value)}
                 style={{
                   width:'100%', background:'var(--surface)',
@@ -1098,7 +1109,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
               <div style={{ marginBottom:18 }}>
                 <div className="kicker" style={{ marginBottom:8 }}>{t.category}</div>
                 <select
-                  value={cat} onChange={e => pickCat(e.target.value)}
+                  value={cat} onChange={e => pickCat(e.target.value)} aria-label={t.category}
                   style={{
                     width:'100%', background:'var(--surface)',
                     border:'1px solid var(--line-2)',
@@ -1106,7 +1117,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
                     fontSize:15, fontFamily:'inherit',
                     color: cat ? 'var(--ink)' : 'var(--ink-3)',
                     outline:'none', appearance:'none',
-                    backgroundImage:'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\' viewBox=\'0 0 12 8\'%3E%3Cpath fill=\'%238C8A82\' d=\'M6 8 0 0h12z\'/%3E%3C/svg%3E")',
+                    backgroundImage:'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\' viewBox=\'0 0 12 8\'%3E%3Cpath fill=\'%236A6860\' d=\'M6 8 0 0h12z\'/%3E%3C/svg%3E")',
                     backgroundRepeat:'no-repeat', backgroundPosition:'right 12px center',
                   }}
                 >
@@ -1120,7 +1131,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
             <div style={{ marginBottom:18 }}>
               <div className="kicker" style={{ marginBottom:8 }}>{t.amount} ({state.settings.currency || 'SFr.'})</div>
               <input
-                type="text" inputMode="decimal" placeholder="0.00"
+                type="text" inputMode="decimal" placeholder="0.00" aria-label={t.amount}
                 value={amount} onChange={e => setAmount(e.target.value.replace(/[^0-9.,]/g,''))}
                 style={{
                   width:'100%', background:'var(--surface)',
@@ -1279,7 +1290,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
         {/* Top bar — navigation only, so the full date fits */}
         <div className="topbar no-print" style={onBack ? { paddingTop:14 } : undefined}>
           <div className="topbar-side">
-            <button className="btn btn-icon" onClick={() => onNavigate(-1)}><Chevron dir="left" size={20}/></button>
+            <button className="btn btn-icon" onClick={() => onNavigate(-1)} aria-label={`${t.prev} ${isWeek ? t.week : t.month}`} title={`${t.prev} ${isWeek ? t.week : t.month}`}><Chevron dir="left" size={20}/></button>
           </div>
           <div className="topbar-center" style={{ overflow:'hidden' }}>
             <div className="kicker" style={{ textAlign:'center', marginBottom:2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', color: isCurrent ? 'var(--accent)' : 'var(--ink-3)' }}>
@@ -1291,7 +1302,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
             </div>
           </div>
           <div className="topbar-side topbar-side-right">
-            <button className="btn btn-icon" onClick={() => onNavigate(1)}><Chevron dir="right" size={20}/></button>
+            <button className="btn btn-icon" onClick={() => onNavigate(1)} aria-label={`${t.next} ${isWeek ? t.week : t.month}`} title={`${t.next} ${isWeek ? t.week : t.month}`}><Chevron dir="right" size={20}/></button>
           </div>
         </div>
 
@@ -1311,11 +1322,11 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
             ))}
           </div>
           <div style={{ flex:1 }}/>
-          <button className="btn btn-icon btn-soft" onClick={printPdf} title={t.print}
+          <button className="btn btn-icon btn-soft" onClick={printPdf} title={t.print} aria-label={t.print}
             style={{ width:38, height:38 }}>
             <PrintIcon size={18}/>
           </button>
-          <button className="btn btn-icon" onClick={() => onOpenEntry(null)} title={t.addEntry}
+          <button className="btn btn-icon" onClick={() => onOpenEntry(null)} title={t.addEntry} aria-label={t.addEntry}
             style={{ width:38, height:38, background:'var(--ink)', color:'var(--bg)' }}>
             <PlusIcon size={18} color="var(--bg)"/>
           </button>
@@ -1849,7 +1860,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
               </div>
               <div className="srow-sub" style={{ marginBottom:8 }}>{t.customCategoriesLabel}</div>
               <div style={{ display:'flex', gap:7, flexWrap:'wrap', marginBottom:12 }}>
-                {custom.length === 0 && <span style={{ fontSize:12.5, color:'var(--ink-4)' }}>—</span>}
+                {custom.length === 0 && <span style={{ fontSize:12.5, color:'var(--ink-3)' }}>—</span>}
                 {custom.map(c => (
                   <span key={c} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'5px 7px 5px 11px', borderRadius:999, background:'var(--accent-soft)', color:'var(--accent)', fontSize:12.5, fontWeight:500 }}>
                     {c}
@@ -1966,7 +1977,10 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
 
     useEffect(() => { localStorage.setItem(LS_DATA,     JSON.stringify(state.entries));  }, [state.entries]);
     useEffect(() => { localStorage.setItem(LS_SETTINGS, JSON.stringify(state.settings)); }, [state.settings]);
-    useEffect(() => { document.title = tr(state.settings.lang).docName; }, [state.settings.lang]);
+    useEffect(() => {
+      document.title = tr(state.settings.lang).docName;
+      document.documentElement.lang = state.settings.lang || 'de';
+    }, [state.settings.lang]);
 
     useEffect(() => {
       const check = () => setState(s => {
@@ -2139,7 +2153,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
         {/* Hidden date input for jump-to-date (tap the period title) */}
         <input ref={jumpRef} type="date" className="no-print"
           onChange={e => { if (e.target.value) setAnchorDate(parseKey(e.target.value)); }}
-          style={{ position:'absolute', opacity:0, pointerEvents:'none', width:0, height:0, bottom:80, left:'50%' }}
+          style={{ position:'absolute', opacity:0, pointerEvents:'none', width:0, height:0, top:'calc(env(safe-area-inset-top, 20px) + 56px)', left:'50%' }}
         />
       </div>
     );

@@ -8,6 +8,23 @@
 
 ---
 
+## ✅ Status (2026-05-31): alle umsetzbaren Befunde behoben
+
+Alle 10 Layout-/A11y-Befunde und alle 5 PDF-Befunde wurden gefixt und im Preview verifiziert:
+
+- **Zoom freigegeben** (`maximum-scale` entfernt) · **`color-scheme: light`** ergänzt
+- **Kontrast:** `--ink-3` #8C8A82 → **#6A6860** (5.34:1 / 4.64:1 auf `--line`), `--accent` #C25C2E → **#AD4E20** (5.17:1 / 4.69:1 auf `--accent-soft`) — alles ≥ 4.5:1 verifiziert
+- **`.kc-saldo-label`** 9 px → 10 px · leeres „—" jetzt `--ink-3`
+- **A11y:** `<html lang>` folgt jetzt der Sprache · `aria-label` an Navigationspfeilen, Druck-/Plus-Button und allen Formularfeldern (Datum/Beschreibung/Kategorie/Betrag)
+- **Jump-Date-Picker** an den oberen Titelbereich verschoben
+- **PDF:** `.card { overflow: visible }` im Druck (kein Clipping mehr auf Folgeseiten) · Tabellentext 12 px → **13 px** (≈10 pt) · `tfoot` als `table-row-group` → „Total" erscheint **einmal** statt pro Seite · tote `tfoot td:first-child`-Regel (font-weight 400) auf 700 angeglichen
+
+**Nicht umgesetzt (bewusst, Architektur):** Babel-im-Browser/unpkg-CDN bleibt — ein Wechsel zu vorkompiliertem JS würde die „Single-File, kein Build"-Architektur aufbrechen, die die App bewusst nutzt. Separat zu entscheiden.
+
+*Befunde unten dokumentieren den ursprünglichen Audit-Stand.*
+
+---
+
 ## 🔴 Layout-Bugs (blockierend / hohe Priorität)
 
 > Hinweis: Es wurde **kein** Bug gefunden, der das Rendering bricht oder Inhalte am Bildschirm abschneidet. Die folgende Liste ist nach Schweregrad priorisiert; Schwerpunkt ist Accessibility/Lesbarkeit.

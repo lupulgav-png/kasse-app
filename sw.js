@@ -1,4 +1,4 @@
-const CACHE = 'kasse-v6';
+const CACHE = 'kasse-v7';
 
 self.addEventListener('install', e => {
   e.waitUntil(
