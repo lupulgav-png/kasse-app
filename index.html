@@ -1392,7 +1392,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
               <div className="kasse-total">
                 <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:4 }}>
                   <span style={{ fontSize:10, fontWeight:600, letterSpacing:'0.06em', color:'var(--ink-3)', background:'var(--line)', borderRadius:5, padding:'2px 7px' }}>
-                    {settings.currency || 'SFr.'}
+                    {currencyIso(settings)}
                   </span>
                 </div>
                 <div className="kt-row"><span>{t.colIncome}</span><span className="tnum" style={{ color:'var(--positive)' }}>{fmtAmount(totalEin)}</span></div>
