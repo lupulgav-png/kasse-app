@@ -698,6 +698,13 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
 
   // Shrink the on-screen font for long amounts so they fit the narrow numeric
   // columns instead of clipping. Print CSS resets this to a uniform size.
+  // ISO 4217 codes for the built-in currency presets.
+  // Used wherever an official code is needed (PDF header, table columns).
+  const CURRENCY_ISO_MAP = { chf:'CHF', eur:'EUR', usd:'USD' };
+  function currencyIso(sett) {
+    return CURRENCY_ISO_MAP[sett.currencyPreset || 'chf'] || sett.currency || 'CHF';
+  }
+
   function numFontSize(str) {
     const len = (str || '').length;
     if (len >= 12) return 9;     // 1'234'567.89
@@ -1266,7 +1273,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
             </div>
             <div style={{ textAlign:'right', flexShrink:0 }}>
               <div style={{ fontSize:15, fontWeight:600 }}>{t.docName} {periodStart.getFullYear()}</div>
-              <div style={{ fontSize:12, color:'#555', marginTop:2 }}>{t.currencyLabel}: {settings.currency || 'SFr.'}</div>
+              <div style={{ fontSize:12, color:'#555', marginTop:2 }}>{t.currencyLabel}: {currencyIso(settings)}</div>
             </div>
           </div>
           <div style={{ borderTop:'1.5px solid #000', paddingTop:8, fontSize:12, fontWeight:600 }}>
@@ -1383,6 +1390,11 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
                 );
               })}
               <div className="kasse-total">
+                <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:4 }}>
+                  <span style={{ fontSize:10, fontWeight:600, letterSpacing:'0.06em', color:'var(--ink-3)', background:'var(--line)', borderRadius:5, padding:'2px 7px' }}>
+                    {settings.currency || 'SFr.'}
+                  </span>
+                </div>
                 <div className="kt-row"><span>{t.colIncome}</span><span className="tnum" style={{ color:'var(--positive)' }}>{fmtAmount(totalEin)}</span></div>
                 <div className="kt-row"><span>{t.colExpense}</span><span className="tnum" style={{ color:'var(--negative)' }}>{fmtAmount(totalAus)}</span></div>
                 <div className="kt-row kt-saldo"><span>{t.colBalance}</span><span className="tnum" style={{ color: endSaldo < 0 ? 'var(--negative)' : 'var(--ink)' }}>{fmtSaldo(endSaldo)}</span></div>
@@ -1396,9 +1408,9 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
                   <tr>
                     <th style={{ width:72 }}>{t.colDate}</th>
                     <th style={{ width:'auto' }}>{t.colText}</th>
-                    <th style={{ width:92 }}>{t.colIncome}</th>
-                    <th style={{ width:90 }}>{t.colExpense}</th>
-                    <th style={{ width:100 }}>{t.colBalance}</th>
+                    <th style={{ width:92 }}>{t.colIncome} <span style={{ fontWeight:400, opacity:0.7 }}>({currencyIso(settings)})</span></th>
+                    <th style={{ width:90 }}>{t.colExpense} <span style={{ fontWeight:400, opacity:0.7 }}>({currencyIso(settings)})</span></th>
+                    <th style={{ width:100 }}>{t.colBalance} <span style={{ fontWeight:400, opacity:0.7 }}>({currencyIso(settings)})</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1694,7 +1706,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
 
     const CURRENCY_PRESETS = [
       { id:'chf', label:'CHF', symbol:'SFr.' },
-      { id:'eur', label:'Euro', symbol:'€' },
+      { id:'eur', label:'Euro', symbol:'€'   },
       { id:'usd', label:'Dollar', symbol:'$' },
       { id:'custom', label:t.custom, symbol:null },
     ];
