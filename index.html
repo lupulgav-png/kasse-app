@@ -422,6 +422,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
     currency:       'SFr.',
     currencyPreset: 'chf',  // 'chf' | 'eur' | 'usd' | 'custom'
     weekStartDay:   6,       // 0=So … 6=Sa (default Samstag)
+    weekEndDay:     5,       // 0=So … 6=Sa (default Freitag = 7-Tage-Woche Sa–Fr)
     anfangssaldo:   0,       // Startsaldo vor dem allerersten Eintrag
     showKW:         true,    // Kalenderwoche anzeigen
     headerType:     'firma', // 'firma' | 'privat' — Kopfzeilen-Typ für PDF
@@ -430,10 +431,14 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
     customCategories: [],    // benutzerdefinierte Kategorien (zusätzlich zu den Vorgaben)
   };
 
-  /* runtime week-start day — updated from settings (0=So … 6=Sa) */
+  /* runtime week-start/end days — updated from settings (0=So … 6=Sa) */
   let WEEK_START_DAY = (() => {
     try { const s = JSON.parse(localStorage.getItem(LS_SETTINGS)); if (s?.weekStartDay != null) return Number(s.weekStartDay); } catch {}
     return 6; // default Samstag
+  })();
+  let WEEK_END_DAY = (() => {
+    try { const s = JSON.parse(localStorage.getItem(LS_SETTINGS)); if (s?.weekEndDay != null) return Number(s.weekEndDay); } catch {}
+    return 5; // default Freitag
   })();
 
   /* ═══════════════════════════════════════════
@@ -498,6 +503,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       setup:'Setup', settings:'Einstellungen',
       grpBalance:'Saldo', openingBalance:'Anfangssaldo', openingBalanceSub:'Startbetrag vor dem ersten Eintrag',
       grpDisplay:'Darstellung', currencyLabel:'Währung', weekStart:'Wochenbeginn', weekStartSub:'Erster Tag der Woche',
+      weekEnd:'Wochenende', weekEndSub:'Letzter Tag der Woche',
       showCalWeek:'Kalenderwoche anzeigen', showCalWeekSub:'KW in Kasse, Verlauf & PDF', language:'Sprache',
       custom:'Eigene', customCurrencyPlaceholder:'z.B. Fr., CHF, DKK …',
       grpHeaderFirma:'Firma (PDF-Header)', grpHeaderPrivat:'Privatperson (PDF-Header)',
@@ -531,6 +537,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       setup:'Setup', settings:'Settings',
       grpBalance:'Balance', openingBalance:'Opening balance', openingBalanceSub:'Starting amount before the first entry',
       grpDisplay:'Display', currencyLabel:'Currency', weekStart:'Week start', weekStartSub:'First day of the week',
+      weekEnd:'Week end', weekEndSub:'Last day of the week',
       showCalWeek:'Show calendar week', showCalWeekSub:'CW in cash book, history & PDF', language:'Language',
       custom:'Custom', customCurrencyPlaceholder:'e.g. Fr., CHF, DKK …',
       grpHeaderFirma:'Company (PDF header)', grpHeaderPrivat:'Private person (PDF header)',
@@ -564,6 +571,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       setup:'Setup', settings:'Impostazioni',
       grpBalance:'Saldo', openingBalance:'Saldo iniziale', openingBalanceSub:'Importo iniziale prima della prima voce',
       grpDisplay:'Visualizzazione', currencyLabel:'Valuta', weekStart:'Inizio settimana', weekStartSub:'Primo giorno della settimana',
+      weekEnd:'Fine settimana', weekEndSub:'Ultimo giorno della settimana',
       showCalWeek:'Mostra settimana', showCalWeekSub:'in cassa, storico e PDF', language:'Lingua',
       custom:'Propria', customCurrencyPlaceholder:'es. Fr., CHF, DKK …',
       grpHeaderFirma:'Azienda (intestazione PDF)', grpHeaderPrivat:'Persona privata (intestazione PDF)',
@@ -597,6 +605,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       setup:'Configuration', settings:'Réglages',
       grpBalance:'Solde', openingBalance:'Solde initial', openingBalanceSub:'Montant de départ avant la première entrée',
       grpDisplay:'Affichage', currencyLabel:'Devise', weekStart:'Début de semaine', weekStartSub:'Premier jour de la semaine',
+      weekEnd:'Fin de semaine', weekEndSub:'Dernier jour de la semaine',
       showCalWeek:'Afficher la semaine', showCalWeekSub:'dans caisse, historique et PDF', language:'Langue',
       custom:'Autre', customCurrencyPlaceholder:'p.ex. Fr., CHF, DKK …',
       grpHeaderFirma:'Entreprise (en-tête PDF)', grpHeaderPrivat:'Particulier (en-tête PDF)',
@@ -643,9 +652,10 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
     return days;
   }
 
-  function weekEndDate(satDate) {
-    const d = new Date(satDate);
-    d.setDate(d.getDate() + 6);
+  function weekEndDate(wsDate) {
+    const d = new Date(wsDate);
+    const days = (WEEK_END_DAY - WEEK_START_DAY + 7) % 7 || 7;
+    d.setDate(d.getDate() + days);
     return d;
   }
 
@@ -1782,6 +1792,24 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       );
     }
 
+    function WeekEndRow() {
+      return (
+        <SRow label={t.weekEnd} sub={t.weekEndSub} right={
+          <select value={s.weekEndDay ?? 5}
+            onChange={e => setS('weekEndDay', Number(e.target.value))}
+            style={{
+              border:'none', background:'transparent',
+              fontSize:13, fontFamily:'inherit', color:'var(--ink-2)',
+              cursor:'pointer', outline:'none', textAlign:'right',
+            }}>
+            {WEEKDAY_OPTIONS.map(d => (
+              <option key={d} value={d}>{WD_NAMES[d]}</option>
+            ))}
+          </select>
+        }/>
+      );
+    }
+
     const LANG_OPTIONS = ['de','en','it','fr'];
     function LanguageRow() {
       return (
@@ -1912,6 +1940,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
             <LanguageRow/>
             <CurrencyRow/>
             <WeekStartRow/>
+            <WeekEndRow/>
             <SRow label={t.showCalWeek} sub={t.showCalWeekSub} right={
               <Toggle on={s.showKW !== false} onChange={v => setS('showKW', v)}/>
             }/>
@@ -1966,6 +1995,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
     const [state, setState] = useState(() => {
       const settings = loadSettings();
       WEEK_START_DAY = settings.weekStartDay ?? 6;
+      WEEK_END_DAY   = settings.weekEndDay   ?? 5;
       return {
         today:    new Date(),
         entries:  loadData(),
@@ -1973,9 +2003,9 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       };
     });
 
-    // Keep the week-start in sync synchronously (App renders before its children,
-    // so getWeekStart() always sees the current value — no one-render lag).
+    // Keep week-start and week-end in sync synchronously.
     WEEK_START_DAY = state.settings.weekStartDay ?? 6;
+    WEEK_END_DAY   = state.settings.weekEndDay   ?? 5;
 
     const t = tr(state.settings.lang);
     const TABS = [
@@ -2062,7 +2092,10 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
     function navigate(dir) {
       setAnchorDate(d => {
         const nd = new Date(d);
-        if (viewMode === 'woche') nd.setDate(nd.getDate() + dir * 7);
+        if (viewMode === 'woche') {
+          const step = ((WEEK_END_DAY - WEEK_START_DAY + 7) % 7 || 7) + 1;
+          nd.setDate(nd.getDate() + dir * step);
+        }
         else                      nd.setMonth(nd.getMonth() + dir, 1);
         return nd;
       });
