@@ -706,6 +706,9 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
     return sign + Math.abs(n).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  // Swiss rounding: nearest 5 Rappen (0.05)
+  function rnd5(n) { return Math.round(n * 20) / 20; }
+
   // Shrink the on-screen font for long amounts so they fit the narrow numeric
   // columns instead of clipping. Print CSS resets this to a uniform size.
   // ISO 4217 codes for the built-in currency presets.
@@ -1047,7 +1050,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
 
     function save(overrideType) {
       const ty = overrideType !== undefined ? overrideType : type;
-      const amt = parseFloat(amount.replace(',', '.').replace(/[^0-9.]/g, ''));
+      const amt = rnd5(parseFloat(amount.replace(',', '.').replace(/[^0-9.]/g, '')));
       if (!desc.trim() || isNaN(amt) || amt <= 0 || !ty) return;
 
       const entry = { id: editEntry?.id || uid(), desc: desc.trim(), amount: amt, type: ty, cat: cat || 'custom', date };
@@ -1058,7 +1061,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
     // Click Einnahme / Ausgabe → set type AND confirm immediately if fields are valid
     function handleTypeAndSave(newType) {
       setType(newType);
-      const amt = parseFloat(amount.replace(',', '.').replace(/[^0-9.]/g, ''));
+      const amt = rnd5(parseFloat(amount.replace(',', '.').replace(/[^0-9.]/g, '')));
       if (desc.trim() && !isNaN(amt) && amt > 0) {
         const entry = { id: editEntry?.id || uid(), desc: desc.trim(), amount: amt, type: newType, cat: cat || 'custom', date };
         onSave(entry, isEdit);
@@ -1694,7 +1697,7 @@ input, textarea, button, select { font-family: inherit; color: inherit; }
       const [val, setVal] = useState(String(s[settingsKey] ?? 0));
       function commit() {
         const n = parseFloat(val.replace(',', '.').replace(/[^0-9.\-]/g, ''));
-        setS(settingsKey, isNaN(n) ? 0 : Math.round(n * 100) / 100);
+        setS(settingsKey, isNaN(n) ? 0 : rnd5(n));
         setEditing(false);
       }
       return (
